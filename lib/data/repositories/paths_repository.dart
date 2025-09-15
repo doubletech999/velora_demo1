@@ -20,8 +20,6 @@ class PathsRepository {
         location: 'Upper Galilee, Northern Palestine',
         locationAr: 'الجليل الأعلى، شمال فلسطين',
         images: [
-          'assets/images/galilee1.jpg',
-          'assets/images/galilee2.jpg',
           'assets/images/galilee3.jpg',
         ],
         length: 12.5,

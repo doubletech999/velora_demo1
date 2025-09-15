@@ -172,7 +172,7 @@ class _EnhancedHomeScreenState extends State<HomeScreen>
                     _buildEnhancedSearchBar(),
                     
                     // المسارات الشائعة
-                  //  const TrendingPathsWidget(),
+                    const TrendingPathsWidget(),
                     
                     // تقدم الإنجازات
                     const AchievementProgressWidget(),
