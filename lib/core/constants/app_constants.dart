@@ -14,7 +14,7 @@ class AppConstants {
   // معلومات التطبيق
   static const String appName = 'Velora';
   static const String appVersion = '1.0.0';
-  static const String appEmail = 'support@velora.com';
+  static const String appEmail = 'mahmoudsharfoush34@gmail.com';
   static const String appPlayStoreUrl = 'https://play.google.com/store/apps/details?id=com.velora.app';
   static const String appAppStoreUrl = 'https://apps.apple.com/app/velora/id123456789';
   
@@ -48,8 +48,8 @@ class AppConstants {
   static const String notificationChannelDescription = 'Notifications from Velora app';
   
   // روابط المساعدة
-  static const String termsUrl = 'https://velora.com/terms';
-  static const String privacyUrl = 'https://velora.com/privacy';
-  static const String faqUrl = 'https://velora.com/faq';
-  static const String supportUrl = 'https://velora.com/support';
+  static const String termsUrl = 'https://velora-explore.netlify.app/';
+  static const String privacyUrl = 'https://velora-explore.netlify.app/';
+  static const String faqUrl = 'https://velora-explore.netlify.app/';
+  static const String supportUrl = 'https://velora-explore.netlify.app/';
 }

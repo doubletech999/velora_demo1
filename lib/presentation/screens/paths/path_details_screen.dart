@@ -1,6 +1,5 @@
-// lib/presentation/screens/paths/path_details_screen.dart
+// lib/presentation/screens/paths/path_details_screen.dart - مُصحح
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -28,7 +27,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
   final PageController _imagePageController = PageController();
   int _currentImagePage = 0;
   bool _isDescriptionExpanded = false;
-  late PathModel _path;
+  PathModel? _path; // جعلها nullable
   bool _isLoading = true;
   bool _isSaved = false;
 
@@ -43,8 +42,6 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
       _isLoading = true;
     });
 
-    // في التطبيق الحقيقي، سيكون هناك استدعاء API لجلب التفاصيل
-    // هنا نستخدم البيانات المحلية كمثال
     await Future.delayed(const Duration(milliseconds: 500));
 
     final pathsProvider = Provider.of<PathsProvider>(context, listen: false);
@@ -62,7 +59,6 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
         _isSaved = savedPathsProvider.isPathSaved(widget.pathId);
       });
     } else {
-      // معالجة حالة عدم العثور على المسار
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -76,6 +72,8 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
   }
 
   void _toggleSaved() {
+    if (_path == null) return;
+
     setState(() {
       _isSaved = !_isSaved;
     });
@@ -107,141 +105,144 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
     );
   }
 
-  // دالة بدء الرحلة المحدثة
   void _startJourney() {
+    if (_path == null) return;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              PhosphorIcons.map_pin,
-              color: AppColors.primary,
-              size: 28,
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(PhosphorIcons.map_pin, color: AppColors.primary, size: 28),
+                const SizedBox(width: 8),
+                const Text('بدء الرحلة'),
+              ],
             ),
-            const SizedBox(width: 8),
-            const Text('بدء الرحلة'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'هل أنت مستعد لبدء رحلتك إلى ${_path.nameAr}؟',
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: AppColors.warning.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
+            content: SingleChildScrollView(
+              // إضافة ScrollView للحوار
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    PhosphorIcons.info,
-                    color: AppColors.warning,
-                    size: 20,
+                  Text(
+                    'هل أنت مستعد لبدء رحلتك إلى ${_path!.nameAr}؟',
+                    style: const TextStyle(fontSize: 16),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'تأكد من أن لديك إنترنت وبطارية كافية لتتبع الرحلة',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.warning,
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.warning.withOpacity(0.3),
+                        width: 1,
                       ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          PhosphorIcons.info,
+                          color: AppColors.warning,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'تأكد من أن لديك إنترنت وبطارية كافية لتتبع الرحلة',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('المسافة:'),
+                            Text(
+                              '${_path!.length} كم',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('الوقت المتوقع:'),
+                            Text(
+                              '${_path!.estimatedDuration.inHours} ساعات',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('الصعوبة:'),
+                            Text(
+                              _getDifficultyText(_path!.difficulty),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getDifficultyColor(_path!.difficulty),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            // معلومات سريعة عن الرحلة
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('المسافة:'),
-                      Text(
-                        '${_path.length} كم',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('الوقت المتوقع:'),
-                      Text(
-                        '${_path.estimatedDuration.inHours} ساعات',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('الصعوبة:'),
-                      Text(
-                        _getDifficultyText(_path.difficulty),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _getDifficultyColor(_path.difficulty),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(context).pop();
-              // الانتقال إلى شاشة تتبع الرحلة
-              context.push('/journey/${_path.id}');
-            },
-            icon: const Icon(PhosphorIcons.play),
-            label: const Text('ابدأ الآن'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('إلغاء'),
               ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  context.push('/journey/${_path!.id}');
+                },
+                icon: const Icon(PhosphorIcons.play),
+                label: const Text('ابدأ الآن'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -253,10 +254,9 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // تهيئة الاستجابة
     ResponsiveUtils.init(context);
 
-    if (_isLoading) {
+    if (_isLoading || _path == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('تفاصيل المسار')),
         body: const Center(child: CircularProgressIndicator()),
@@ -266,7 +266,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // شريط التطبيق المتداخل مع الصور
+          // شريط التطبيق
           SliverAppBar(
             expandedHeight: 300,
             pinned: true,
@@ -311,7 +311,6 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                   icon: const Icon(PhosphorIcons.share),
                   color: AppColors.primary,
                   onPressed: () {
-                    // مشاركة المسار
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('ميزة المشاركة قريباً...'),
@@ -326,30 +325,38 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
               background: Stack(
                 children: [
                   // عرض شرائح الصور
-                  PageView.builder(
-                    controller: _imagePageController,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _currentImagePage = index;
-                      });
-                    },
-                    itemCount: _path.images.length,
-                    itemBuilder: (context, index) {
-                      return Hero(
-                        tag: 'path-image-${_path.id}',
-                        child: Image.asset(
-                          _path.images[index],
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[200],
-                              child: const Icon(PhosphorIcons.image, size: 48),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
+                  _path!.images.isNotEmpty
+                      ? PageView.builder(
+                        controller: _imagePageController,
+                        onPageChanged: (index) {
+                          setState(() {
+                            _currentImagePage = index;
+                          });
+                        },
+                        itemCount: _path!.images.length,
+                        itemBuilder: (context, index) {
+                          return Hero(
+                            tag: 'path-image-${_path!.id}',
+                            child: Image.asset(
+                              _path!.images[index],
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    PhosphorIcons.image,
+                                    size: 48,
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      )
+                      : Container(
+                        color: Colors.grey[200],
+                        child: const Icon(PhosphorIcons.image, size: 48),
+                      ),
 
                   // تراكب تدرج
                   Positioned.fill(
@@ -369,23 +376,24 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                   ),
 
                   // مؤشر الصفحات
-                  Positioned(
-                    bottom: 16,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: SmoothPageIndicator(
-                        controller: _imagePageController,
-                        count: _path.images.length,
-                        effect: WormEffect(
-                          dotColor: Colors.white.withOpacity(0.5),
-                          activeDotColor: Colors.white,
-                          dotHeight: 8,
-                          dotWidth: 8,
+                  if (_path!.images.length > 1)
+                    Positioned(
+                      bottom: 16,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: SmoothPageIndicator(
+                          controller: _imagePageController,
+                          count: _path!.images.length,
+                          effect: WormEffect(
+                            dotColor: Colors.white.withOpacity(0.5),
+                            activeDotColor: Colors.white,
+                            dotHeight: 8,
+                            dotWidth: 8,
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
                   // مستوى الصعوبة
                   Positioned(
@@ -398,7 +406,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: _getDifficultyColor(
-                          _path.difficulty,
+                          _path!.difficulty,
                         ).withOpacity(0.9),
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -406,13 +414,13 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            _getDifficultyIcon(_path.difficulty),
+                            _getDifficultyIcon(_path!.difficulty),
                             size: 18,
                             color: Colors.white,
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            _getDifficultyText(_path.difficulty),
+                            _getDifficultyText(_path!.difficulty),
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
@@ -437,7 +445,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                 children: [
                   // العنوان والموقع
                   Text(
-                    _path.nameAr,
+                    _path!.nameAr,
                     style: Theme.of(context).textTheme.displaySmall,
                   ),
                   const SizedBox(height: 8),
@@ -449,10 +457,13 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                         color: AppColors.textSecondary,
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        _path.locationAr,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(color: AppColors.textSecondary),
+                      Expanded(
+                        // إضافة Expanded هنا
+                        child: Text(
+                          _path!.locationAr,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
                       ),
                     ],
                   ),
@@ -482,10 +493,10 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                   _buildRatingSection(),
                   const SizedBox(height: 32),
 
-                  // زر بدء الرحلة المحدث
+                  // زر بدء الرحلة
                   Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 16),
+                    height: 56,
                     child: ElevatedButton.icon(
                       onPressed: _startJourney,
                       icon: const Icon(PhosphorIcons.map_trifold),
@@ -499,7 +510,6 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -508,6 +518,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
@@ -524,7 +535,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
           child: _InfoCard(
             icon: PhosphorIcons.ruler,
             title: 'المسافة',
-            value: '${_path.length} كم',
+            value: '${_path!.length} كم',
           ),
         ),
         const SizedBox(width: 12),
@@ -532,7 +543,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
           child: _InfoCard(
             icon: PhosphorIcons.clock,
             title: 'المدة',
-            value: '${_path.estimatedDuration.inHours} ساعات',
+            value: '${_path!.estimatedDuration.inHours} ساعات',
           ),
         ),
         const SizedBox(width: 12),
@@ -540,8 +551,8 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
           child: _InfoCard(
             icon: PhosphorIcons.star,
             title: 'التقييم',
-            value: '${_path.rating}',
-            subtitle: '(${_path.reviewCount})',
+            value: '${_path!.rating}',
+            subtitle: '(${_path!.reviewCount})',
           ),
         ),
       ],
@@ -574,7 +585,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          _path.descriptionAr,
+          _path!.descriptionAr,
           style: Theme.of(context).textTheme.bodyLarge,
           maxLines: _isDescriptionExpanded ? null : 3,
           overflow: _isDescriptionExpanded ? null : TextOverflow.ellipsis,
@@ -603,58 +614,69 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: FlutterMap(
-              options: MapOptions(
-                initialCenter: _path.coordinates.first,
-                initialZoom: 13.0,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.velora',
-                ),
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: _path.coordinates,
-                      color: AppColors.primary,
-                      strokeWidth: 4.0,
-                    ),
-                  ],
-                ),
-                MarkerLayer(
-                  markers: [
-                    Marker(
-                      point: _path.coordinates.first,
-                      width: 40,
-                      height: 40,
-                      child: Icon(
-                        PhosphorIcons.map_pin_fill,
-                        color: AppColors.primary,
-                        size: 30,
+            child:
+                _path!.coordinates.isNotEmpty
+                    ? FlutterMap(
+                      options: MapOptions(
+                        initialCenter: _path!.coordinates.first,
+                        initialZoom: 13.0,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.example.velora',
+                        ),
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: _path!.coordinates,
+                              color: AppColors.primary,
+                              strokeWidth: 4.0,
+                            ),
+                          ],
+                        ),
+                        MarkerLayer(
+                          markers: [
+                            if (_path!.coordinates.isNotEmpty) ...[
+                              Marker(
+                                point: _path!.coordinates.first,
+                                width: 40,
+                                height: 40,
+                                child: Icon(
+                                  PhosphorIcons.map_pin_fill,
+                                  color: AppColors.primary,
+                                  size: 30,
+                                ),
+                              ),
+                              if (_path!.coordinates.length > 1)
+                                Marker(
+                                  point: _path!.coordinates.last,
+                                  width: 40,
+                                  height: 40,
+                                  child: Icon(
+                                    PhosphorIcons.flag_fill,
+                                    color: AppColors.secondary,
+                                    size: 30,
+                                  ),
+                                ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    )
+                    : Container(
+                      color: Colors.grey[200],
+                      child: const Center(
+                        child: Text('لا توجد إحداثيات للمسار'),
                       ),
                     ),
-                    Marker(
-                      point: _path.coordinates.last,
-                      width: 40,
-                      height: 40,
-                      child: Icon(
-                        PhosphorIcons.flag_fill,
-                        color: AppColors.secondary,
-                        size: 30,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ),
         ),
         const SizedBox(height: 8),
         Center(
           child: TextButton.icon(
             onPressed: () {
-              // فتح الخريطة بشكل كامل
               context.go('/map');
             },
             icon: const Icon(PhosphorIcons.map_trifold),
@@ -675,7 +697,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
           spacing: 8,
           runSpacing: 8,
           children:
-              _path.activities.map((activity) {
+              _path!.activities.map((activity) {
                 return Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -721,7 +743,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
       children: [
         Text('تحذيرات وإرشادات', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
-        ..._path.warningsAr.map((warning) {
+        ..._path!.warningsAr.map((warning) {
           return Container(
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(12),
@@ -765,7 +787,6 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
             Text('التقييمات', style: Theme.of(context).textTheme.titleLarge),
             TextButton.icon(
               onPressed: () {
-                // عرض جميع التقييمات
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('ميزة التقييمات قريباً...'),
@@ -791,7 +812,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
               ),
               child: Center(
                 child: Text(
-                  '${_path.rating}',
+                  '${_path!.rating}',
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -808,10 +829,10 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                   Row(
                     children: List.generate(5, (index) {
                       return Icon(
-                        index < _path.rating.floor()
+                        index < _path!.rating.floor()
                             ? PhosphorIcons.star_fill
-                            : (index == _path.rating.floor() &&
-                                _path.rating % 1 > 0)
+                            : (index == _path!.rating.floor() &&
+                                _path!.rating % 1 > 0)
                             ? PhosphorIcons.star_half
                             : PhosphorIcons.star,
                         color: Colors.amber,
@@ -821,7 +842,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_path.reviewCount} تقييم',
+                    '${_path!.reviewCount} تقييم',
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 14,
@@ -830,9 +851,9 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             ElevatedButton.icon(
               onPressed: () {
-                // إضافة تقييم
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('ميزة إضافة التقييم قريباً...'),
@@ -840,14 +861,18 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                   ),
                 );
               },
-              icon: const Icon(PhosphorIcons.pencil_simple),
-              label: const Text('أضف تقييمك'),
+              icon: const Icon(PhosphorIcons.pencil_simple, size: 16),
+              label: const Text('أضف تقييمك', style: TextStyle(fontSize: 12)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                minimumSize: const Size(100, 36),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
             ),

@@ -229,7 +229,7 @@ class _JourneyTrackingScreenState extends State<JourneyTrackingScreen> {
                   children: [
                     // الوقت المستغرق مع تصميم محسن
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(50),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         shape: BoxShape.circle,

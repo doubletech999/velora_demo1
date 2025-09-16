@@ -1,4 +1,4 @@
-// lib/presentation/screens/profile/profile_screen.dart - مُصحح
+// lib/presentation/screens/profile/profile_screen.dart - محسن ومنسق
 import 'package:flutter/material.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
 import 'package:provider/provider.dart';
@@ -33,17 +33,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadUserData();
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // وظائف التحميل والبيانات
+  // ═══════════════════════════════════════════════════════════════════
+
   Future<void> _loadUserData() async {
-    setState(() {
-      _isLoading = true;
-    });
-    
+    setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 300));
-    
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // وظائف تسجيل الخروج
+  // ═══════════════════════════════════════════════════════════════════
 
   void _showLogoutConfirmation() {
     final localizations = AppLocalizations.of(context)!;
@@ -82,9 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
     
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     await userProvider.logout();
@@ -94,24 +94,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // وظائف فتح الروابط
+  // ═══════════════════════════════════════════════════════════════════
+
   Future<void> _openUrl(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            languageProvider.isArabic 
-              ? 'لا يمكن فتح الرابط'
-              : 'Cannot open link'
-          ),
-          backgroundColor: AppColors.error,
-        ),
+      _showSnackBar(
+        message: languageProvider.isArabic 
+          ? 'لا يمكن فتح الرابط'
+          : 'Cannot open link',
+        isError: true,
       );
     }
   }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // وظائف حول التطبيق
+  // ═══════════════════════════════════════════════════════════════════
 
   void _showAboutDialog() {
     final localizations = AppLocalizations.of(context)!;
@@ -161,6 +165,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // وظائف تغيير اللغة
+  // ═══════════════════════════════════════════════════════════════════
+
   void _showLanguageBottomSheet() {
     final languageProvider = Provider.of<LanguageProvider>(context, listen: false);
     
@@ -175,6 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // مقبض السحب
               Container(
                 width: 40,
                 height: 4,
@@ -184,37 +193,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // العنوان
               Text(
                 provider.isArabic ? 'اختر اللغة' : 'Choose Language',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 16),
               
-              // اللغة العربية
-              ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: provider.isArabic ? AppColors.primary.withOpacity(0.1) : Colors.grey[100],
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'ع',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: provider.isArabic ? AppColors.primary : Colors.grey[600],
-                      ),
-                    ),
-                  ),
-                ),
-                title: const Text('العربية'),
-                subtitle: const Text('Arabic'),
-                trailing: provider.isArabic
-                    ? const Icon(PhosphorIcons.check_circle_fill, color: AppColors.primary)
-                    : null,
+              // خيار اللغة العربية
+              _LanguageOption(
+                flag: 'ع',
+                title: 'العربية',
+                subtitle: 'Arabic',
+                isSelected: provider.isArabic,
                 onTap: () {
                   provider.changeLanguage('ar');
                   Navigator.pop(context);
@@ -222,31 +214,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
               ),
               
-              // اللغة الإنجليزية
-              ListTile(
-                leading: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: provider.isEnglish ? AppColors.primary.withOpacity(0.1) : Colors.grey[100],
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      'En',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: provider.isEnglish ? AppColors.primary : Colors.grey[600],
-                      ),
-                    ),
-                  ),
-                ),
-                title: const Text('English'),
-                subtitle: const Text('الإنجليزية'),
-                trailing: provider.isEnglish
-                    ? const Icon(PhosphorIcons.check_circle_fill, color: AppColors.primary)
-                    : null,
+              // خيار اللغة الإنجليزية
+              _LanguageOption(
+                flag: 'En',
+                title: 'English',
+                subtitle: 'الإنجليزية',
+                isSelected: provider.isEnglish,
                 onTap: () {
                   provider.changeLanguage('en');
                   Navigator.pop(context);
@@ -267,16 +240,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ? 'تم تغيير اللغة إلى العربية'
         : 'Language changed to English';
         
+    _showSnackBar(
+      message: message,
+      icon: PhosphorIcons.check_circle,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // وظائف مساعدة
+  // ═══════════════════════════════════════════════════════════════════
+
+  void _showSnackBar({
+    required String message,
+    IconData? icon,
+    bool isError = false,
+  }) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
-            const Icon(PhosphorIcons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Text(message),
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white),
+              const SizedBox(width: 8),
+            ],
+            Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: AppColors.success,
+        backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
         shape: RoundedRectangleBorder(
@@ -285,6 +275,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  Widget _buildDivider() {
+    return const Divider(
+      color: AppColors.divider,
+      thickness: 1,
+      height: 1,
+      indent: 60,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // البناء الرئيسي للواجهة
+  // ═══════════════════════════════════════════════════════════════════
 
   @override
   Widget build(BuildContext context) {
@@ -298,6 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = userProvider.user;
     final savedPathsCount = savedPathsProvider.savedPaths.length;
     
+    // شاشة التحميل
     if (_isLoading || user == null) {
       return Scaffold(
         body: LoadingIndicator(
@@ -312,441 +316,447 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // شريط التطبيق
-          SliverAppBar(
-            expandedHeight: 240,
-            pinned: true,
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            actions: [
-              // زر تغيير اللغة المحسن
-              Container(
-                margin: const EdgeInsets.all(8),
-                child: Material(
-                  color: Colors.white.withOpacity(0.9),
-                  borderRadius: BorderRadius.circular(20),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: _showLanguageBottomSheet,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            PhosphorIcons.translate,
-                            color: AppColors.primary,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            languageProvider.isArabic ? 'EN' : 'ع',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              
-              // زر الإعدادات
-              IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.8),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    PhosphorIcons.gear,
-                    color: AppColors.primary,
-                  ),
-                ),
-                onPressed: () {
-                  context.go('/profile/settings');
-                },
-              ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                children: [
-                  // الخلفية
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            AppColors.primary,
-                            AppColors.primary.withOpacity(0.8),
-                            AppColors.primary.withOpacity(0.7),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // الحافة المنحنية
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 60,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(30),
-                          topRight: Radius.circular(30),
-                        ),
-                      ),
-                    ),
-                  ),
-                  
-                  // معلومات المستخدم
-                  Positioned(
-                    bottom: 30,
-                    left: 0,
-                    right: 0,
-                    child: Column(
-                      children: [
-                        // صورة المستخدم
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white,
-                              width: 3,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
-                                blurRadius: 10,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(50),
-                            child: user.profileImageUrl != null
-                                ? Image.network(
-                                    user.profileImageUrl!,
-                                    fit: BoxFit.cover,
-                                  )
-                                : Center(
-                                    child: Text(
-                                      user.name.substring(0, 1).toUpperCase(),
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 40,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        // الاسم والبريد
-                        Text(
-                          user.name,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        
-                        Text(
-                          user.email,
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // شريط التطبيق مع معلومات المستخدم
+          _buildProfileHeader(languageProvider, user),
           
           // إحصائيات المستخدم
-          SliverToBoxAdapter(
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _StatItem(
-                      value: user.completedTrips.toString(),
-                      label: localizations.get('completed_trips'),
-                      icon: PhosphorIcons.check_circle,
-                      color: AppColors.success,
-                    ),
-                  ),
-                  Expanded(
-                    child: _StatItem(
-                      value: savedPathsCount.toString(),
-                      label: localizations.get('saved_trips'),
-                      icon: PhosphorIcons.bookmark_simple,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  Expanded(
-                    child: _StatItem(
-                      value: user.achievements.toString(),
-                      label: localizations.get('achievements'),
-                      icon: PhosphorIcons.trophy,
-                      color: Colors.amber,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          _buildUserStats(localizations, user, savedPathsCount),
           
-          // قائمة الخيارات
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _MenuItem(
-                    icon: PhosphorIcons.user,
-                    title: languageProvider.isArabic ? 'حسابي' : 'My Account',
-                    subtitle: languageProvider.isArabic 
-                      ? 'تعديل المعلومات الشخصية'
-                      : 'Edit personal information',
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                        ),
-                        builder: (context) => const EditProfileSheet(),
-                      );
-                    },
-                  ),
-                  _buildDivider(),
-                  _MenuItem(
-                    icon: PhosphorIcons.bookmark_simple,
-                    title: localizations.get('saved'),
-                    subtitle: languageProvider.isArabic 
-                      ? 'عرض وإدارة المسارات المحفوظة'
-                      : 'View and manage saved paths',
-                    onTap: () {
-                      context.go('/profile/saved');
-                    },
-                  ),
-                  _buildDivider(),
-                  _MenuItem(
-                    icon: PhosphorIcons.check_circle,
-                    title: localizations.get('my_trips'),
-                    subtitle: languageProvider.isArabic 
-                      ? 'المسارات التي أكملتها'
-                      : 'Paths you have completed',
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                        ),
-                        builder: (context) => const CompletedTripsSheet(),
-                      );
-                    },
-                  ),
-                  _buildDivider(),
-                  _MenuItem(
-                    icon: PhosphorIcons.trophy,
-                    title: localizations.get('achievements'),
-                    subtitle: languageProvider.isArabic 
-                      ? 'الإنجازات التي حققتها'
-                      : 'Achievements you have earned',
-                    onTap: () {
-                      context.go('/profile/achievements');
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // قائمة الخيارات الأساسية
+          _buildMainOptions(localizations, languageProvider),
           
-          // الإعدادات واللغة
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _MenuItem(
-                    icon: PhosphorIcons.gear,
-                    title: localizations.get('settings'),
-                    subtitle: languageProvider.isArabic 
-                      ? 'تخصيص التطبيق'
-                      : 'Customize the app',
-                    onTap: () {
-                      context.go('/profile/settings');
-                    },
-                  ),
-                  _buildDivider(),
-                  _MenuItem(
-                    icon: PhosphorIcons.translate,
-                    title: localizations.get('language'),
-                    subtitle: languageProvider.isArabic 
-                      ? 'تغيير لغة التطبيق'
-                      : 'Change app language',
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            languageProvider.isArabic ? 'العربية' : 'English',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Icon(
-                          PhosphorIcons.caret_right,
-                          color: AppColors.textSecondary,
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                    onTap: _showLanguageBottomSheet,
-                  ),
-                  _buildDivider(),
-                  _MenuItem(
-                    icon: PhosphorIcons.question,
-                    title: localizations.get('help_support'),
-                    subtitle: languageProvider.isArabic 
-                      ? 'الأسئلة الشائعة والدعم الفني'
-                      : 'FAQ and technical support',
-                    onTap: () {
-                      _openUrl(AppConstants.faqUrl);
-                    },
-                  ),
-                  _buildDivider(),
-                  _MenuItem(
-                    icon: PhosphorIcons.info,
-                    title: localizations.get('about_app'),
-                    subtitle: languageProvider.isArabic 
-                      ? 'معلومات عن Velora'
-                      : 'Information about Velora',
-                    trailing: Text(
-                      languageProvider.isArabic ? 'النسخة 1.0.0' : 'Version 1.0.0',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                      ),
-                    ),
-                    onTap: _showAboutDialog,
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // الإعدادات والمساعدة
+          _buildSettingsOptions(localizations, languageProvider),
           
           // زر تسجيل الخروج
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: _MenuItem(
-                icon: PhosphorIcons.sign_out,
-                title: localizations.get('logout'),
-                subtitle: languageProvider.isArabic 
-                  ? 'الخروج من حسابك'
-                  : 'Sign out of your account',
-                iconColor: AppColors.error,
-                titleColor: AppColors.error,
-                onTap: _showLogoutConfirmation,
-              ),
-            ),
-          ),
+          _buildLogoutOption(localizations, languageProvider),
           
-          // مساحة إضافية
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
-          ),
+          // مساحة إضافية في الأسفل
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
     );
   }
-  
-  Widget _buildDivider() {
-    return const Divider(
-      color: AppColors.divider,
-      thickness: 1,
-      height: 1,
-      indent: 60,
+
+  // ═══════════════════════════════════════════════════════════════════
+  // بناء أقسام الواجهة
+  // ═══════════════════════════════════════════════════════════════════
+
+  SliverAppBar _buildProfileHeader(LanguageProvider languageProvider, user) {
+    return SliverAppBar(
+      expandedHeight: 240,
+      pinned: true,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      actions: [
+        // زر تغيير اللغة
+        Container(
+          margin: const EdgeInsets.all(8),
+          child: Material(
+            color: Colors.white.withOpacity(0.9),
+            borderRadius: BorderRadius.circular(20),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: _showLanguageBottomSheet,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      PhosphorIcons.translate,
+                      color: AppColors.primary,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      languageProvider.isArabic ? 'EN' : 'ع',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        
+        // زر الإعدادات
+        IconButton(
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.8),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              PhosphorIcons.gear,
+              color: AppColors.primary,
+            ),
+          ),
+          onPressed: () => context.go('/profile/settings'),
+        ),
+      ],
+      flexibleSpace: FlexibleSpaceBar(
+        background: Stack(
+          children: [
+            // الخلفية المتدرجة
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      AppColors.primary,
+                      AppColors.primary.withOpacity(0.8),
+                      AppColors.primary.withOpacity(0.7),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            
+            // الحافة المنحنية السفلية
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 25,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(30),
+                    topRight: Radius.circular(30),
+                  ),
+                ),
+              ),
+            ),
+            
+            // معلومات المستخدم
+            Positioned(
+              bottom: 30,
+              left: 0,
+              right: 0,
+              child: _buildUserInfo(user),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Column _buildUserInfo(user) {
+    return Column(
+      children: [
+        // صورة المستخدم
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 10,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(50),
+            child: user.profileImageUrl != null
+                ? Image.network(
+                    user.profileImageUrl!,
+                    fit: BoxFit.cover,
+                  )
+                : Center(
+                    child: Text(
+                      user.name.substring(0, 1).toUpperCase(),
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        
+        // اسم المستخدم
+        Text(
+          user.name,
+          style: const TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        
+        // بريد المستخدم الإلكتروني
+        Text(
+          user.email,
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 15,
+          ),
+        ),
+      ],
+    );
+  }
+
+  SliverToBoxAdapter _buildUserStats(localizations, user, int savedPathsCount) {
+    return SliverToBoxAdapter(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _StatItem(
+                value: user.completedTrips.toString(),
+                label: localizations.get('completed_trips'),
+                icon: PhosphorIcons.check_circle,
+                color: AppColors.success,
+              ),
+            ),
+            Expanded(
+              child: _StatItem(
+                value: savedPathsCount.toString(),
+                label: localizations.get('saved_trips'),
+                icon: PhosphorIcons.bookmark_simple,
+                color: AppColors.primary,
+              ),
+            ),
+            Expanded(
+              child: _StatItem(
+                value: user.achievements.toString(),
+                label: localizations.get('achievements'),
+                icon: PhosphorIcons.trophy,
+                color: Colors.amber,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  SliverToBoxAdapter _buildMainOptions(localizations, LanguageProvider languageProvider) {
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // حسابي
+            _MenuItem(
+              icon: PhosphorIcons.user,
+              title: languageProvider.isArabic ? 'حسابي' : 'My Account',
+              subtitle: languageProvider.isArabic 
+                ? 'تعديل المعلومات الشخصية'
+                : 'Edit personal information',
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  builder: (context) => const EditProfileSheet(),
+                );
+              },
+            ),
+            _buildDivider(),
+
+            // المحفوظات
+            _MenuItem(
+              icon: PhosphorIcons.bookmark_simple,
+              title: localizations.get('saved'),
+              subtitle: languageProvider.isArabic 
+                ? 'عرض وإدارة المسارات المحفوظة'
+                : 'View and manage saved paths',
+              onTap: () => context.go('/profile/saved'),
+            ),
+            _buildDivider(),
+
+            // رحلاتي
+            _MenuItem(
+              icon: PhosphorIcons.check_circle,
+              title: localizations.get('my_trips'),
+              subtitle: languageProvider.isArabic 
+                ? 'المسارات التي أكملتها'
+                : 'Paths you have completed',
+              onTap: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  builder: (context) => const CompletedTripsSheet(),
+                );
+              },
+            ),
+            _buildDivider(),
+
+            // الإنجازات
+            _MenuItem(
+              icon: PhosphorIcons.trophy,
+              title: localizations.get('achievements'),
+              subtitle: languageProvider.isArabic 
+                ? 'الإنجازات التي حققتها'
+                : 'Achievements you have earned',
+              onTap: () => context.go('/profile/achievements'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  SliverToBoxAdapter _buildSettingsOptions(localizations, LanguageProvider languageProvider) {
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // الإعدادات
+            _MenuItem(
+              icon: PhosphorIcons.gear,
+              title: localizations.get('settings'),
+              subtitle: languageProvider.isArabic 
+                ? 'تخصيص التطبيق'
+                : 'Customize the app',
+              onTap: () => context.go('/profile/settings'),
+            ),
+            _buildDivider(),
+
+            // اللغة
+            _MenuItem(
+              icon: PhosphorIcons.translate,
+              title: localizations.get('language'),
+              subtitle: languageProvider.isArabic 
+                ? 'تغيير لغة التطبيق'
+                : 'Change app language',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      languageProvider.isArabic ? 'العربية' : 'English',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    PhosphorIcons.caret_right,
+                    color: AppColors.textSecondary,
+                    size: 16,
+                  ),
+                ],
+              ),
+              onTap: _showLanguageBottomSheet,
+            ),
+            _buildDivider(),
+
+            // المساعدة والدعم
+            _MenuItem(
+              icon: PhosphorIcons.question,
+              title: localizations.get('help_support'),
+              subtitle: languageProvider.isArabic 
+                ? 'الأسئلة الشائعة والدعم الفني'
+                : 'FAQ and technical support',
+              onTap: () => _openUrl(AppConstants.faqUrl),
+            ),
+            _buildDivider(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  SliverToBoxAdapter _buildLogoutOption(localizations, LanguageProvider languageProvider) {
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: _MenuItem(
+          icon: PhosphorIcons.sign_out,
+          title: localizations.get('logout'),
+          subtitle: languageProvider.isArabic 
+            ? 'الخروج من حسابك'
+            : 'Sign out of your account',
+          iconColor: AppColors.error,
+          titleColor: AppColors.error,
+          onTap: _showLogoutConfirmation,
+        ),
+      ),
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// عنصر الإحصائيات
+// ═══════════════════════════════════════════════════════════════════
 
 class _StatItem extends StatelessWidget {
   final String value;
@@ -765,6 +775,7 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // أيقونة الإحصائية
         Container(
           width: 40,
           height: 40,
@@ -781,6 +792,8 @@ class _StatItem extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
+
+        // القيمة
         Text(
           value,
           style: TextStyle(
@@ -790,17 +803,24 @@ class _StatItem extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
+
+        // التسمية
         Text(
           label,
           style: TextStyle(
             fontSize: 12,
             color: AppColors.textSecondary,
           ),
+          textAlign: TextAlign.center,
         ),
       ],
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// عنصر القائمة
+// ═══════════════════════════════════════════════════════════════════
 
 class _MenuItem extends StatelessWidget {
   final IconData icon;
@@ -862,6 +882,75 @@ class _MenuItem extends StatelessWidget {
         PhosphorIcons.caret_right,
         color: AppColors.textSecondary,
       ),
+      onTap: onTap,
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// خيار اللغة
+// ═══════════════════════════════════════════════════════════════════
+
+class _LanguageOption extends StatelessWidget {
+  final String flag;
+  final String title;
+  final String subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _LanguageOption({
+    required this.flag,
+    required this.title,
+    required this.subtitle,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isSelected 
+            ? AppColors.primary.withOpacity(0.1) 
+            : Colors.grey[100],
+          shape: BoxShape.circle,
+        ),
+        child: Center(
+          child: Text(
+            flag,
+            style: TextStyle(
+              fontSize: flag == 'En' ? 16 : 18,
+              fontWeight: FontWeight.bold,
+              color: isSelected 
+                ? AppColors.primary 
+                : Colors.grey[600],
+            ),
+          ),
+        ),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: 12,
+          color: AppColors.textSecondary,
+        ),
+      ),
+      trailing: isSelected
+          ? const Icon(
+              PhosphorIcons.check_circle_fill,
+              color: AppColors.primary,
+            )
+          : null,
       onTap: onTap,
     );
   }
