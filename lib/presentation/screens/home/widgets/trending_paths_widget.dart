@@ -1,4 +1,3 @@
-// lib/presentation/screens/home/widgets/trending_paths_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
 import 'package:provider/provider.dart';
@@ -34,6 +33,16 @@ class _TrendingPathsWidgetState extends State<TrendingPathsWidget>
       ),
     );
     _animationController.forward();
+    
+    // تحميل البيانات بعد انتهاء البناء
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeData();
+    });
+  }
+
+  void _initializeData() {
+    final pathsProvider = Provider.of<PathsProvider>(context, listen: false);
+    pathsProvider.initializeIfNeeded();
   }
 
   @override
@@ -76,6 +85,14 @@ class _TrendingPathsWidgetState extends State<TrendingPathsWidget>
             const SizedBox(height: 12),
             Consumer<PathsProvider>(
               builder: (context, pathsProvider, child) {
+                // التحقق من التهيئة أولاً
+                if (!pathsProvider.initialized) {
+                  // إذا لم تكن مهيأة، قم بالتهيئة
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    pathsProvider.initializeIfNeeded();
+                  });
+                }
+
                 if (pathsProvider.isLoading) {
                   return const Center(
                     child: CircularProgressIndicator(),

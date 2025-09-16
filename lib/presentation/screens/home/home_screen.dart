@@ -1,9 +1,8 @@
-// lib/presentation/screens/home/enhanced_home_screen.dart
+// lib/presentation/screens/home/home_screen.dart - نسخة محسنة للأداء
 import 'package:flutter/material.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_utils.dart';
@@ -21,188 +20,108 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _EnhancedHomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _EnhancedHomeScreenState extends State<HomeScreen> 
-    with TickerProviderStateMixin {
-  final ScrollController _scrollController = ScrollController();
-  final PageController _tipsController = PageController();
-  late AnimationController _pulseController;
-  late AnimationController _bounceController;
+class _HomeScreenState extends State<HomeScreen> 
+    with AutomaticKeepAliveClientMixin {
   
+  // الحفاظ على حالة الصفحة لتجنب إعادة البناء
+  @override
+  bool get wantKeepAlive => true;
+  
+  // تحسين التحكم في الرسوم المتحركة
+  late final ScrollController _scrollController;
   bool _isScrolled = false;
-  int _currentTipIndex = 0;
   
-  final List<Map<String, dynamic>> _dailyTips = [
-    {
-      'title': 'نصيحة اليوم',
-      'content': 'احضر كمية كافية من الماء عند المشي لمسافات طويلة',
-      'icon': PhosphorIcons.drop,
-      'color': Colors.blue,
-    },
-    {
-      'title': 'تذكير أمان',
-      'content': 'أخبر أحداً عن خطة رحلتك قبل المغادرة',
-      'icon': PhosphorIcons.shield_check,
-      'color': Colors.green,
-    },
-    {
-      'title': 'نصيحة بيئية',
-      'content': 'لا تترك أي مخلفات واحرص على حماية الطبيعة',
-      'icon': PhosphorIcons.leaf,
-      'color': Colors.teal,
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
-    _setupAnimations();
+    _scrollController = ScrollController();
     _setupScrollListener();
-    _startTipsAnimation();
-  }
-
-  void _setupAnimations() {
-    _pulseController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    )..repeat(reverse: true);
     
-    _bounceController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
+    // تحميل البيانات بشكل تدريجي
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadDataGradually();
+    });
   }
-
+  
   void _setupScrollListener() {
     _scrollController.addListener(() {
-      setState(() {
-        _isScrolled = _scrollController.offset > 100;
-      });
-    });
-  }
-
-  void _startTipsAnimation() {
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        _nextTip();
+      final isScrolled = _scrollController.offset > 100;
+      if (isScrolled != _isScrolled) {
+        setState(() {
+          _isScrolled = isScrolled;
+        });
       }
     });
   }
-
-  void _nextTip() {
-    if (_currentTipIndex < _dailyTips.length - 1) {
-      setState(() {
-        _currentTipIndex++;
-      });
-      _tipsController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } else {
-      setState(() {
-        _currentTipIndex = 0;
-      });
-      _tipsController.animateToPage(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
+  
+  Future<void> _loadDataGradually() async {
+    // تحميل البيانات الأساسية أولاً
+    final pathsProvider = Provider.of<PathsProvider>(context, listen: false);
     
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        _nextTip();
-      }
-    });
+    // تحميل المسارات المميزة فقط في البداية
+    if (pathsProvider.featuredPaths.isEmpty) {
+      await pathsProvider.loadPaths();
+    }
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _tipsController.dispose();
-    _pulseController.dispose();
-    _bounceController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    ResponsiveUtils.init(context);
+    super.build(context); // مطلوب لـ AutomaticKeepAliveClientMixin
     
-    final userProvider = Provider.of<UserProvider>(context);
-    final pathsProvider = Provider.of<PathsProvider>(context);
-    final savedPathsProvider = Provider.of<SavedPathsProvider>(context);
-    final languageProvider = Provider.of<LanguageProvider>(context);
+    ResponsiveUtils.init(context);
     
     return Scaffold(
       body: CustomScrollView(
         controller: _scrollController,
-        physics: const BouncingScrollPhysics(),
+        physics: const BouncingScrollPhysics(), // تحسين النمو
         slivers: [
           // شريط التطبيق المحسن
-          _buildEnhancedAppBar(context, userProvider, languageProvider),
+          _buildOptimizedAppBar(context),
           
-          // محتوى الصفحة
-          SliverToBoxAdapter(
-            child: AnimationLimiter(
-              child: Column(
-                children: AnimationConfiguration.toStaggeredList(
-                  duration: const Duration(milliseconds: 375),
-                  childAnimationBuilder: (widget) => SlideAnimation(
-                    horizontalOffset: 50.0,
-                    child: FadeInAnimation(child: widget),
-                  ),
-                  children: [
-                    // ويدجت الطقس
-                    const WeatherWidget(),
-                    
-                    // الإحصائيات السريعة
-                    QuickStatsWidget(
-                      completedTrips: userProvider.user?.completedTrips ?? 0,
-                      savedPaths: savedPathsProvider.savedPaths.length,
-                      achievements: userProvider.user?.achievements ?? 0,
-                    ),
-                    
-                    // نصائح يومية
-                    _buildDailyTips(),
-                    
-                    // شريط البحث المحسن
-                    _buildEnhancedSearchBar(),
-                    
-                    // المسارات الشائعة
-                    const TrendingPathsWidget(),
-                    
-                    // تقدم الإنجازات
-                    const AchievementProgressWidget(),
-                    
-                    // مسارات مقترحة بناءً على الموقع
-                    _buildLocationBasedPaths(pathsProvider),
-                    
-                    // دعوة لاستكشاف مسارات جديدة
-                    _buildExploreCallToAction(),
-                    
-                    const SizedBox(height: 100),
-                  ],
-                ),
-              ),
-            ),
+          // محتوى الصفحة مع lazy loading
+          SliverList(
+            delegate: SliverChildListDelegate([
+              // ويدجت الطقس
+              const WeatherWidget(),
+              
+              // الإحصائيات السريعة
+              _buildQuickStats(),
+              
+              // نصائح يومية مبسطة
+              _buildSimpleTips(),
+              
+              // شريط البحث
+              _buildSearchBar(),
+              
+              // المسارات الشائعة (تحميل مُحسن)
+              const OptimizedTrendingPaths(),
+              
+              // تقدم الإنجازات (تحميل lazy)
+              const LazyAchievementProgress(),
+              
+              // دعوة للاستكشاف
+              _buildExploreCallToAction(),
+              
+              const SizedBox(height: 100),
+            ]),
           ),
         ],
       ),
-      // زر عائم للاستكشاف السريع
-      floatingActionButton: _buildFloatingActionButton(),
     );
   }
 
-  Widget _buildEnhancedAppBar(
-    BuildContext context,
-    UserProvider userProvider,
-    LanguageProvider languageProvider,
-  ) {
+  Widget _buildOptimizedAppBar(BuildContext context) {
     return SliverAppBar(
-      expandedHeight: 200,
+      expandedHeight: 180, // تقليل الارتفاع
       pinned: true,
       backgroundColor: AppColors.primary,
       flexibleSpace: FlexibleSpaceBar(
@@ -214,122 +133,90 @@ class _EnhancedHomeScreenState extends State<HomeScreen>
               colors: [
                 AppColors.primary,
                 AppColors.primary.withOpacity(0.8),
-                AppColors.tertiary.withOpacity(0.6),
               ],
             ),
           ),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // شريط العلوي مع الترحيب
-                  Row(
+              child: Consumer<UserProvider>(
+                builder: (context, userProvider, child) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      CircleAvatar(
-                        radius: 25,
-                        backgroundColor: Colors.white.withOpacity(0.2),
-                        child: userProvider.user?.profileImageUrl != null
-                            ? ClipRRect(
-                                borderRadius: BorderRadius.circular(25),
-                                child: Image.network(
-                                  userProvider.user!.profileImageUrl!,
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                ),
-                              )
-                            : Text(
-                                userProvider.user?.name.substring(0, 1).toUpperCase() ?? 'ض',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _getGreeting(),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
-                            ),
-                            Text(
-                              userProvider.user?.name ?? 'مستخدم ضيف',
+                      // معلومات المستخدم مبسطة
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            child: Text(
+                              userProvider.user?.name.substring(0, 1).toUpperCase() ?? 'ض',
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getGreeting(),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  userProvider.user?.name ?? 'مستخدم ضيف',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      // درجة الحرارة
+                      
+                      const Spacer(),
+                      
+                      // رسالة تحفيزية مبسطة
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Row(
                           children: [
-                            Icon(PhosphorIcons.sun, color: Colors.orange, size: 16),
-                            SizedBox(width: 4),
-                            Text('24°C', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            Icon(
+                              PhosphorIcons.heart_fill,
+                              color: Colors.red,
+                              size: 16,
+                            ),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'فلسطين تنتظرك لاستكشاف جمالها',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
                     ],
-                  ),
-                  
-                  const Spacer(),
-                  
-                  // رسالة تحفيزية
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        AnimatedBuilder(
-                          animation: _pulseController,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: 1.0 + (_pulseController.value * 0.1),
-                              child: const Icon(
-                                PhosphorIcons.heart_fill,
-                                color: Colors.red,
-                                size: 20,
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'فلسطين تنتظرك لاستكشاف جمالها',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
@@ -339,95 +226,60 @@ class _EnhancedHomeScreenState extends State<HomeScreen>
         IconButton(
           icon: const Icon(PhosphorIcons.bell, color: Colors.white),
           onPressed: () {
-            // فتح الإشعارات
+            // الإشعارات
           },
-        ),
-        IconButton(
-          icon: const Icon(PhosphorIcons.gear, color: Colors.white),
-          onPressed: () => context.go('/profile/settings'),
         ),
       ],
     );
   }
 
-  Widget _buildDailyTips() {
+  Widget _buildQuickStats() {
+    return Consumer3<UserProvider, SavedPathsProvider, PathsProvider>(
+      builder: (context, userProvider, savedPathsProvider, pathsProvider, child) {
+        return QuickStatsWidget(
+          completedTrips: userProvider.user?.completedTrips ?? 0,
+          savedPaths: savedPathsProvider.savedPaths.length,
+          achievements: userProvider.user?.achievements ?? 0,
+        );
+      },
+    );
+  }
+
+  Widget _buildSimpleTips() {
     return Container(
       margin: const EdgeInsets.all(16),
-      height: 100,
-      child: PageView.builder(
-        controller: _tipsController,
-        itemCount: _dailyTips.length,
-        itemBuilder: (context, index) {
-          final tip = _dailyTips[index];
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  tip['color'].withOpacity(0.1),
-                  tip['color'].withOpacity(0.05),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: tip['color'].withOpacity(0.3),
-                width: 1,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: tip['color'].withOpacity(0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      tip['icon'],
-                      color: tip['color'],
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          tip['title'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: tip['color'],
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          tip['content'],
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.blue.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            PhosphorIcons.lightbulb,
+            color: Colors.blue,
+            size: 24,
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'احرص على أخذ كمية كافية من الماء عند المشي',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.blue,
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildEnhancedSearchBar() {
+  Widget _buildSearchBar() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GestureDetector(
@@ -477,151 +329,6 @@ class _EnhancedHomeScreenState extends State<HomeScreen>
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildLocationBasedPaths(PathsProvider pathsProvider) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                PhosphorIcons.map_pin,
-                color: AppColors.primary,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'مسارات قريبة منك',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () => context.go('/paths'),
-                child: const Text('عرض الكل'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 200,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: 3,
-              itemBuilder: (context, index) {
-                final path = pathsProvider.paths.isNotEmpty 
-                    ? pathsProvider.paths[index % pathsProvider.paths.length]
-                    : null;
-                
-                if (path == null) {
-                  return const SizedBox();
-                }
-                
-                return Container(
-                  width: 280,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Stack(
-                      children: [
-                        Image.asset(
-                          path.images.isNotEmpty ? path.images[0] : 'assets/images/logo.png',
-                          width: double.infinity,
-                          height: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                        Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withOpacity(0.7),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 16,
-                          left: 16,
-                          right: 16,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                path.nameAr,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    PhosphorIcons.map_pin,
-                                    color: Colors.white70,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${path.length} كم من موقعك',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -686,28 +393,6 @@ class _EnhancedHomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildFloatingActionButton() {
-    return AnimatedBuilder(
-      animation: _bounceController,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: 1.0 + (_bounceController.value * 0.1),
-          child: FloatingActionButton.extended(
-            onPressed: () {
-              _bounceController.forward().then((_) {
-                _bounceController.reverse();
-              });
-              context.go('/explore');
-            },
-            backgroundColor: AppColors.secondary,
-            icon: const Icon(PhosphorIcons.lightning),
-            label: const Text('استكشاف سريع'),
-          ),
-        );
-      },
-    );
-  }
-
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) {
@@ -720,85 +405,197 @@ class _EnhancedHomeScreenState extends State<HomeScreen>
   }
 }
 
-// ويدجت الطقس
-class WeatherWidget extends StatelessWidget {
-  const WeatherWidget({super.key});
+// ويدجت محسنة للمسارات الشائعة
+class OptimizedTrendingPaths extends StatelessWidget {
+  const OptimizedTrendingPaths({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.blue.shade400,
-            Colors.blue.shade600,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            PhosphorIcons.sun,
-            color: Colors.white,
-            size: 40,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'الطقس اليوم',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-                const Text(
-                  'مشمس، 24°C',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Text(
-                  'مثالي للمشي والاستكشاف',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text(
-              'رام الله',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+          Row(
+            children: [
+              const Icon(
+                PhosphorIcons.trend_up,
+                color: AppColors.primary,
+                size: 24,
               ),
-            ),
+              const SizedBox(width: 8),
+              const Text(
+                'المسارات الشائعة',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => context.go('/paths'),
+                child: const Text('عرض الكل'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // استخدام FutureBuilder للتحميل المحسن
+          FutureBuilder(
+            future: Provider.of<PathsProvider>(context, listen: false).loadPaths(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(),
+                );
+              }
+              
+              return Consumer<PathsProvider>(
+                builder: (context, pathsProvider, child) {
+                  final trendingPaths = pathsProvider.featuredPaths.take(3).toList();
+                  
+                  if (trendingPaths.isEmpty) {
+                    return const Center(
+                      child: Text('لا توجد مسارات متاحة'),
+                    );
+                  }
+
+                  return SizedBox(
+                    height: 180,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: trendingPaths.length,
+                      itemBuilder: (context, index) {
+                        final path = trendingPaths[index];
+                        return Container(
+                          width: 280,
+                          margin: const EdgeInsets.only(right: 12),
+                          child: GestureDetector(
+                            onTap: () => context.go('/paths/${path.id}'),
+                            child: Card(
+                              clipBehavior: Clip.antiAlias,
+                              elevation: 4,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Stack(
+                                children: [
+                                  // صورة المسار
+                                  Container(
+                                    height: 180,
+                                    width: double.infinity,
+                                    color: Colors.grey[200],
+                                    child: const Center(
+                                      child: Icon(
+                                        PhosphorIcons.image,
+                                        color: Colors.grey,
+                                        size: 48,
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                  // تدرج شفاف
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          begin: Alignment.topCenter,
+                                          end: Alignment.bottomCenter,
+                                          colors: [
+                                            Colors.transparent,
+                                            Colors.black.withOpacity(0.7),
+                                          ],
+                                          stops: const [0.6, 1.0],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  
+                                  // معلومات المسار
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            path.nameAr,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                PhosphorIcons.map_pin,
+                                                color: Colors.white70,
+                                                size: 14,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Expanded(
+                                                child: Text(
+                                                  path.locationAr,
+                                                  style: const TextStyle(
+                                                    color: Colors.white70,
+                                                    fontSize: 12,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              );
+            },
           ),
         ],
       ),
+    );
+  }
+}
+
+// ويدجت محسنة للإنجازات مع lazy loading
+class LazyAchievementProgress extends StatelessWidget {
+  const LazyAchievementProgress({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+      future: Future.delayed(const Duration(milliseconds: 500)), // تأخير التحميل
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            height: 100,
+            margin: const EdgeInsets.all(16),
+            child: const Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        
+        return const AchievementProgressWidget();
+      },
     );
   }
 }

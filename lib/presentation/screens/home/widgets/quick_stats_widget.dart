@@ -1,4 +1,6 @@
-// lib/presentation/screens/home/widgets/quick_stats_widget.dart
+// إصلاح مشكلة Animation Curves في جميع الملفات
+
+// في lib/presentation/screens/home/widgets/quick_stats_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -33,11 +35,19 @@ class _QuickStatsWidgetState extends State<QuickStatsWidget>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
+    
+    // إصلاح منحنى الرسوم المتحركة
     _animation = CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeOutBack,
+      curve: Curves.easeOutBack, // استخدام منحنى آمن
     );
-    _animationController.forward();
+    
+    // تشغيل الرسوم المتحركة بعد البناء
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _animationController.forward();
+      }
+    });
   }
 
   @override
@@ -117,10 +127,14 @@ class _QuickStatsWidgetState extends State<QuickStatsWidget>
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        final delay = index * 0.2;
-        final animationValue = Curves.easeOut.transform(
-          (_animation.value - delay).clamp(0.0, 1.0) / (1.0 - delay),
-        );
+        // إصلاح حساب التأخير والقيمة
+        final delayFactor = index * 0.15; // تقليل التأخير
+        double animationValue = 0.0;
+        
+        if (_animation.value > delayFactor) {
+          // تأكد من أن القيمة تبقى ضمن النطاق [0, 1]
+          animationValue = ((_animation.value - delayFactor) / (1.0 - delayFactor)).clamp(0.0, 1.0);
+        }
         
         return Transform.translate(
           offset: Offset(0, 50 * (1 - animationValue)),
@@ -282,13 +296,13 @@ class _QuickStatsWidgetState extends State<QuickStatsWidget>
                     lineBarsData: [
                       LineChartBarData(
                         spots: [
-                          FlSpot(0, 1 * _animation.value),
-                          FlSpot(1, 3 * _animation.value),
-                          FlSpot(2, 2 * _animation.value),
-                          FlSpot(3, 5 * _animation.value),
-                          FlSpot(4, 3 * _animation.value),
-                          FlSpot(5, 4 * _animation.value),
-                          FlSpot(6, 6 * _animation.value),
+                          FlSpot(0, 1 * _animation.value.clamp(0.0, 1.0)),
+                          FlSpot(1, 3 * _animation.value.clamp(0.0, 1.0)),
+                          FlSpot(2, 2 * _animation.value.clamp(0.0, 1.0)),
+                          FlSpot(3, 5 * _animation.value.clamp(0.0, 1.0)),
+                          FlSpot(4, 3 * _animation.value.clamp(0.0, 1.0)),
+                          FlSpot(5, 4 * _animation.value.clamp(0.0, 1.0)),
+                          FlSpot(6, 6 * _animation.value.clamp(0.0, 1.0)),
                         ],
                         isCurved: true,
                         color: AppColors.primary,

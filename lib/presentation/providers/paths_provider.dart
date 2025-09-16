@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../../data/models/path_model.dart';
 import '../../data/repositories/paths_repository.dart';
@@ -10,6 +11,7 @@ class PathsProvider extends ChangeNotifier {
   List<PathModel> _featuredPaths = [];
   bool _isLoading = false;
   String? _error;
+  bool _initialized = false; // إضافة متغير للتحقق من التهيئة
   
   // Filters
   ActivityType? _selectedActivity;
@@ -20,6 +22,7 @@ class PathsProvider extends ChangeNotifier {
   List<PathModel> get featuredPaths => _featuredPaths;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get initialized => _initialized; // إضافة getter للتحقق من التهيئة
   
   List<PathModel> get filteredPaths {
     return _paths.where((path) {
@@ -35,23 +38,42 @@ class PathsProvider extends ChangeNotifier {
   }
   
   PathsProvider() {
-    loadPaths();
+    // عدم استدعاء loadPaths في constructor
+    // سيتم استدعاؤها من خلال initializeIfNeeded
+  }
+  
+  // دالة للتحقق من التهيئة وتحميل البيانات إذا لم تكن محملة
+  Future<void> initializeIfNeeded() async {
+    if (!_initialized && !_isLoading) {
+      await loadPaths();
+    }
   }
   
   Future<void> loadPaths() async {
+    if (_isLoading) return; // تجنب التحميل المتكرر
+    
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    
+    // إشعار المستمعين بعد انتهاء البناء الحالي
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
     
     try {
       _paths = await _repository.getAllPaths();
       _featuredPaths = await _repository.getFeaturedPaths();
       _error = null;
+      _initialized = true;
     } catch (e) {
       _error = e.toString();
     } finally {
       _isLoading = false;
-      notifyListeners();
+      
+      // إشعار المستمعين بعد انتهاء البناء الحالي
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        notifyListeners();
+      });
     }
   }
   

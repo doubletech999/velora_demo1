@@ -16,8 +16,10 @@ class AchievementProgressWidget extends StatefulWidget {
 class _AchievementProgressWidgetState extends State<AchievementProgressWidget> 
     with TickerProviderStateMixin {
   late AnimationController _progressController;
+  late AnimationController _starAnimationController;
   late Animation<double> _progressAnimation;
 
+  // إضافة قائمة الإنجازات كمتغير
   final List<Achievement> achievements = [
     Achievement(
       id: 'explorer_beginner',
@@ -56,7 +58,7 @@ class _AchievementProgressWidgetState extends State<AchievementProgressWidget>
       id: 'heritage_lover',
       title: 'محب التراث',
       description: 'زر 5 مواقع تراثية',
-      icon: PhosphorIcons.house,
+      icon: PhosphorIcons.buildings_fill,
       color: Colors.purple,
       currentProgress: 5,
       maxProgress: 5,
@@ -68,20 +70,35 @@ class _AchievementProgressWidgetState extends State<AchievementProgressWidget>
   @override
   void initState() {
     super.initState();
+    
     _progressController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
+    
+    _starAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    
+    // إصلاح منحنى الرسوم المتحركة
     _progressAnimation = CurvedAnimation(
       parent: _progressController,
       curve: Curves.easeInOut,
     );
-    _progressController.forward();
+    
+    // تشغيل الرسوم المتحركة بعد البناء
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _progressController.forward();
+      }
+    });
   }
 
   @override
   void dispose() {
     _progressController.dispose();
+    _starAnimationController.dispose();
     super.dispose();
   }
 
@@ -89,7 +106,7 @@ class _AchievementProgressWidgetState extends State<AchievementProgressWidget>
   Widget build(BuildContext context) {
     final completedCount = achievements.where((a) => a.isCompleted).length;
     final totalCount = achievements.length;
-    final overallProgress = completedCount / totalCount;
+    final overallProgress = totalCount > 0 ? completedCount / totalCount : 0.0;
 
     return Container(
       margin: const EdgeInsets.all(16),
@@ -167,10 +184,13 @@ class _AchievementProgressWidgetState extends State<AchievementProgressWidget>
                     AnimatedBuilder(
                       animation: _progressAnimation,
                       builder: (context, child) {
+                        // إصلاح القيمة لتكون ضمن النطاق الآمن
+                        final safePercent = (overallProgress * _progressAnimation.value).clamp(0.0, 1.0);
+                        
                         return CircularPercentIndicator(
                           radius: 35.0,
                           lineWidth: 8.0,
-                          percent: overallProgress * _progressAnimation.value,
+                          percent: safePercent,
                           center: Text(
                             '${(overallProgress * 100).round()}%',
                             style: const TextStyle(
@@ -222,10 +242,13 @@ class _AchievementProgressWidgetState extends State<AchievementProgressWidget>
                   child: AnimatedBuilder(
                     animation: _progressAnimation,
                     builder: (context, child) {
+                      // إصلاح القيمة لتكون ضمن النطاق الآمن
+                      final safePercent = (0.75 * _progressAnimation.value).clamp(0.0, 1.0);
+                      
                       return LinearPercentIndicator(
                         width: MediaQuery.of(context).size.width - 96,
                         lineHeight: 8.0,
-                        percent: 0.75 * _progressAnimation.value,
+                        percent: safePercent,
                         backgroundColor: Colors.amber.withOpacity(0.2),
                         progressColor: Colors.amber,
                         barRadius: const Radius.circular(10),
@@ -296,7 +319,10 @@ class _AchievementProgressWidgetState extends State<AchievementProgressWidget>
   }
 
   Widget _buildAchievementCard(Achievement achievement) {
-    final progress = achievement.currentProgress / achievement.maxProgress;
+    // حماية من القسمة على صفر
+    final progress = achievement.maxProgress > 0 
+        ? achievement.currentProgress / achievement.maxProgress 
+        : 0.0;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -422,10 +448,13 @@ class _AchievementProgressWidgetState extends State<AchievementProgressWidget>
                         child: AnimatedBuilder(
                           animation: _progressAnimation,
                           builder: (context, child) {
+                            // إصلاح القيمة لتكون ضمن النطاق الآمن
+                            final safePercent = (progress * _progressAnimation.value).clamp(0.0, 1.0);
+                            
                             return LinearPercentIndicator(
                               width: 150,
                               lineHeight: 6.0,
-                              percent: progress * _progressAnimation.value,
+                              percent: safePercent,
                               backgroundColor: achievement.color.withOpacity(0.2),
                               progressColor: achievement.color,
                               barRadius: const Radius.circular(10),
@@ -457,12 +486,16 @@ class _AchievementProgressWidgetState extends State<AchievementProgressWidget>
                       size: 14,
                     ),
                     const SizedBox(width: 4),
-                    Text(
-                      achievement.reward,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.amber,
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Text(
+                        achievement.reward,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.amber,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
