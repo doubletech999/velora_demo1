@@ -1,4 +1,4 @@
-// lib/presentation/screens/paths/path_details_screen.dart - مُصحح ومحدث
+// lib/presentation/screens/paths/path_details_screen.dart - مُصحح
 import 'package:flutter/material.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
@@ -13,7 +13,6 @@ import '../../../data/models/path_model.dart';
 import '../../providers/paths_provider.dart';
 import '../../providers/saved_paths_provider.dart';
 import '../../widgets/common/custom_app_bar.dart';
-import '../../widgets/trips/create_trip_dialog.dart';
 
 class PathDetailsScreen extends StatefulWidget {
   final String pathId;
@@ -106,13 +105,144 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
     );
   }
 
-  void _showTripRegistration() {
+  void _startJourney() {
     if (_path == null) return;
 
     showDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (context) => CreateTripDialog(path: _path!),
+      builder:
+          (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(PhosphorIcons.map_pin, color: AppColors.primary, size: 28),
+                const SizedBox(width: 8),
+                const Text('بدء الرحلة'),
+              ],
+            ),
+            content: SingleChildScrollView(
+              // إضافة ScrollView للحوار
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'هل أنت مستعد لبدء رحلتك إلى ${_path!.nameAr}؟',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.warning.withOpacity(0.3),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          PhosphorIcons.info,
+                          color: AppColors.warning,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'تأكد من أن لديك إنترنت وبطارية كافية لتتبع الرحلة',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.warning,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('المسافة:'),
+                            Text(
+                              '${_path!.length} كم',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('الوقت المتوقع:'),
+                            Text(
+                              '${_path!.estimatedDuration.inHours} ساعات',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text('الصعوبة:'),
+                            Text(
+                              _getDifficultyText(_path!.difficulty),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: _getDifficultyColor(_path!.difficulty),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  context.push('/journey/${_path!.id}');
+                },
+                icon: const Icon(PhosphorIcons.play),
+                label: const Text('ابدأ الآن'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ],
+          ),
     );
   }
 
@@ -328,6 +458,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
                       ),
                       const SizedBox(width: 6),
                       Expanded(
+                        // إضافة Expanded هنا
                         child: Text(
                           _path!.locationAr,
                           style: Theme.of(context).textTheme.titleMedium
@@ -360,21 +491,17 @@ class _PathDetailsScreenState extends State<PathDetailsScreen> {
 
                   // التقييمات
                   _buildRatingSection(),
-                  const SizedBox(height: 24),
-                  
-                  // الرحلات المسجلة لهذا المسار
-                  _buildRegisteredTrips(),
                   const SizedBox(height: 32),
 
-                  // زر تسجيل الرحلة (محدث)
+                  // زر بدء الرحلة
                   Container(
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton.icon(
-                      onPressed: _showTripRegistration,
-                      icon: const Icon(PhosphorIcons.calendar_plus),
+                      onPressed: _startJourney,
+                      icon: const Icon(PhosphorIcons.map_trifold),
                       label: const Text(
-                        'تسجيل رحلة',
+                        'ابدأ الرحلة',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
