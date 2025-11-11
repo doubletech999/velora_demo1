@@ -1,0 +1,79 @@
+المطلوب: تعديل Laravel Backend و Admin Panel لدعم فكرة "المسارات الجديدة" حيث المسارات والتخييم هي المحتوى الأساسي وليس الأماكن السياحية.
+
+الفكرة الأساسية:
+- المسارات (Routes) - type='route' هي المحتوى الأساسي ⭐
+- التخييم (Camping) - type='camping' جزء من المحتوى الأساسي ⭐
+- الأماكن السياحية (Tourist Sites) - type='site' محتوى ثانوي
+
+التعديلات المطلوبة:
+
+1. Database Migration:
+   - إضافة عمود type في جدول sites: enum('type', ['site', 'route', 'camping'])->default('site')
+   - تحديث البيانات الموجودة: المسارات التي تحتوي على hiking أو length>=5 → type='route'
+   - التخييمات التي تحتوي على camping → type='camping'
+   - الباقي → type='site'
+
+2. API Controller (/api/sites):
+   - دعم filter: ?type=route أو ?type=camping أو ?type=site
+   - دعم pagination (Laravel paginate() format)
+   - دعم search
+   - إرجاع type في response
+   - إرجاع guide_name و guide_name_ar في response الرئيسي (مهم جداً)
+   - إرجاع guide object مع user relation
+
+3. API Resource:
+   - إضافة type في response
+   - إضافة guide_name و guide_name_ar
+   - إضافة guide object مع user relation
+   - جميع الحقول المطلوبة: id, name, name_ar, type, location, latitude, longitude, images, length, estimated_duration, difficulty, activities, rating, review_count, price, guide_id, guide_name, guide_name_ar, guide
+
+4. Admin Panel:
+   - إضافة Filter Tabs: Routes (Primary), Camping (Primary), Tourist Sites (Secondary), All
+   - إضافة Type field في Create/Edit form (dropdown: route, camping, site)
+   - إضافة Badge في Table لعرض النوع مع Primary/Secondary labels
+   - إضافة Statistics في Dashboard (عدد المسارات، التخييمات، الأماكن السياحية)
+   - جعل المسارات والتخييم بارزة (Primary badges)
+
+5. Response Format (Laravel Pagination):
+   {
+     "data": [
+       {
+         "id": 12,
+         "name": "اسم الموقع",
+         "name_ar": "اسم الموقع بالعربية",
+         "type": "route",
+         "guide_name": "اسم المرشد",
+         "guide_name_ar": "اسم المرشد بالعربية",
+         "guide": { ... },
+         ...
+       }
+     ],
+     "current_page": 1,
+     "last_page": 1,
+     "per_page": 10,
+     "total": 1
+   }
+
+6. Endpoints:
+   - GET /api/sites?type=route → المسارات (الأساسية)
+   - GET /api/sites?type=camping → التخييم (الأساسية)
+   - GET /api/sites?type=site → الأماكن السياحية (ثانوية)
+   - GET /api/sites → جميع المواقع
+
+7. Validation:
+   - type: required|in:site,route,camping
+
+النتيجة المتوقعة:
+- المسارات (Routes) هي المحتوى الأساسي في التطبيق
+- التخييم (Camping) جزء من المحتوى الأساسي
+- الأماكن السياحية (Sites) محتوى ثانوي
+- Admin Panel يدعم التصنيف الجديد مع Filter Tabs
+- API يدعم التصنيف الجديد
+- Flutter App يعمل بشكل صحيح
+
+ملاحظات مهمة:
+- Laravel paginate() يرجع pagination info مباشرة في response (data, current_page, last_page, per_page, total)
+- يجب إرجاع guide_name و guide_name_ar في response الرئيسي (ليس فقط في guide object)
+- يجب أن يعمل API بدون authentication (للضيف)
+- يجب دعم CORS لـ localhost و 10.0.2.2
+
