@@ -5,12 +5,12 @@ class Validators {
     if (value == null || value.isEmpty) {
       return 'البريد الإلكتروني مطلوب';
     }
-    
+
     final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
     if (!emailRegex.hasMatch(value)) {
       return 'البريد الإلكتروني غير صالح';
     }
-    
+
     return null;
   }
 
@@ -19,11 +19,11 @@ class Validators {
     if (value == null || value.isEmpty) {
       return 'كلمة المرور مطلوبة';
     }
-    
+
     if (value.length < 6) {
       return 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
     }
-    
+
     return null;
   }
 
@@ -45,15 +45,15 @@ class Validators {
     if (value == null || value.isEmpty) {
       return 'الاسم مطلوب';
     }
-    
+
     if (value.length < 3) {
       return 'الاسم يجب أن يكون 3 أحرف على الأقل';
     }
-    
+
     if (value.length > 50) {
       return 'الاسم طويل جداً';
     }
-    
+
     return null;
   }
 
@@ -62,15 +62,14 @@ class Validators {
     if (value == null || value.isEmpty) {
       return null; // اختياري
     }
-    
-    // إزالة المسافات والأقواس والشرطات
+
     final cleanValue = value.replaceAll(RegExp(r'[\s\-\(\)]'), '');
-    
-    final phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
+
+    final phoneRegex = RegExp(r'^\+?[0-9]{7,15}$');
     if (!phoneRegex.hasMatch(cleanValue)) {
       return 'رقم الهاتف غير صالح';
     }
-    
+
     return null;
   }
 

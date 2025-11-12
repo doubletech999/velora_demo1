@@ -11,8 +11,7 @@ class AppConstants {
   static const String themeKey = 'theme_mode';
   static const String onboardingCompletedKey = 'onboarding_completed';
   static const String customApiBaseUrlKey = 'custom_api_base_url';
-  static const String remoteApiFallbackUrl =
-      'https://trevally-unpatented-christia.ngrok-free.dev/api';
+  static const String remoteApiFallbackUrl = 'https://velorify.pro/api';
 
   // معلومات التطبيق
   static const String appName = 'Velora';

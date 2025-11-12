@@ -37,6 +37,7 @@ class _PathDetailsScreenState extends State<PathDetailsScreen>
   bool _isDescriptionExpanded = false;
   PathModel? _path;
   bool _isLoading = true;
+  bool _isBookablePath = true;
   bool _isSaved = false;
   List<TripRegistrationModel> _registeredTrips = [];
 
@@ -87,8 +88,15 @@ class _PathDetailsScreenState extends State<PathDetailsScreen>
     final path = pathsProvider.getPathById(widget.pathId);
 
     if (path != null) {
-      await tripProvider.loadTrips();
-      final pathTrips = tripProvider.getTripsByPath(widget.pathId);
+      final pathType = path.type?.toLowerCase();
+      _isBookablePath = pathType != 'site';
+
+      if (_isBookablePath) {
+        await tripProvider.loadTrips();
+        _registeredTrips = tripProvider.getTripsByPath(widget.pathId);
+      } else {
+        _registeredTrips = [];
+      }
 
       // جلب التقييمات الفعلية من API
       // استخدام pathId كـ siteId لأن المسارات تُعامل كمواقع في API
@@ -100,10 +108,11 @@ class _PathDetailsScreenState extends State<PathDetailsScreen>
         _path = path;
         _isLoading = false;
         _isSaved = savedPathsProvider.isPathSaved(widget.pathId);
-        _registeredTrips = pathTrips;
       });
 
-      _fabAnimationController.forward();
+      if (_isBookablePath) {
+        _fabAnimationController.forward();
+      }
     } else {
       if (mounted) {
         final localizations = AppLocalizations.ofOrThrow(context);
@@ -241,21 +250,28 @@ ${isArabic ? _path!.descriptionAr : _path!.description}
       body: CustomScrollView(
         slivers: [_buildSliverAppBar(), _buildContentSliver()],
       ),
-      floatingActionButton: ScaleTransition(
-        scale: _fabAnimation,
-        child: FloatingActionButton.extended(
-          onPressed: _showTripRegistrationDialog,
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          elevation: 6,
-          icon: const Icon(PhosphorIcons.clipboard_text),
-          label: Text(
-            localizations.get('register_for_trip'),
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton:
+          _isBookablePath
+              ? ScaleTransition(
+                scale: _fabAnimation,
+                child: FloatingActionButton.extended(
+                  onPressed: _showTripRegistrationDialog,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 6,
+                  icon: const Icon(PhosphorIcons.clipboard_text),
+                  label: Text(
+                    localizations.get('register_for_trip'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              )
+              : null,
+      floatingActionButtonLocation:
+          _isBookablePath ? FloatingActionButtonLocation.centerFloat : null,
     );
   }
 
@@ -513,7 +529,7 @@ ${isArabic ? _path!.descriptionAr : _path!.description}
           children: [
             _buildInfoCards(),
             const SizedBox(height: 24),
-            if (_registeredTrips.isNotEmpty) ...[
+            if (_isBookablePath && _registeredTrips.isNotEmpty) ...[
               _buildRegisteredTripsSection(),
               const SizedBox(height: 24),
             ],

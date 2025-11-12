@@ -53,8 +53,8 @@ class BottomNavBar extends StatelessWidget {
                 label: localizations.get('home'),
               ),
               BottomNavigationBarItem(
-                icon: const Icon(PhosphorIcons.map_pin),
-                label: localizations.get('sites'),
+                icon: const Icon(PhosphorIcons.path),
+                label: localizations.get('paths'),
               ),
               BottomNavigationBarItem(
                 icon: const Icon(PhosphorIcons.compass),

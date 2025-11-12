@@ -14,6 +14,7 @@ class UserRepository {
     String name,
     String email,
     String password, {
+    String? phone,
     String? role,
     String? language,
   }) async {
@@ -22,6 +23,7 @@ class UserRepository {
         name: name,
         email: email,
         password: password,
+        phone: phone,
         role: role,
         language: language ?? 'ar',
       );

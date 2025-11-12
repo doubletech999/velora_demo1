@@ -27,11 +27,10 @@ class ApiService {
       _customBaseUrl != null && _customBaseUrl!.isNotEmpty;
 
   /// اكتشاف البيئة تلقائياً واختيار العنوان المناسب
-  /// - Flutter Web: http://localhost:8000/api
-  /// - Android Emulator: http://10.0.2.2:8000/api
-  /// - iOS Simulator: http://127.0.0.1:8000/api
-  /// - Real Device (ngrok): https://trevally-unpatented-christia.ngrok-free.dev/api
-  /// - Real Device (Custom IP): يمكن تعيينه عبر setCustomBaseUrl()
+  /// - Flutter Web: https://velorify.pro/api
+  /// - Android Emulator: https://velorify.pro/api
+  /// - iOS Simulator: https://velorify.pro/api
+  /// - Real Device (Custom IP/URL): يمكن تعيينه عبر setCustomBaseUrl()
   String get baseUrl {
     // إذا كان هناك URL مخصص (ngrok أو IP مخصص)، استخدمه
     if (_customBaseUrl != null && _customBaseUrl!.isNotEmpty) {
@@ -43,30 +42,28 @@ class ApiService {
     String defaultUrl;
     if (kIsWeb) {
       // Flutter Web - استخدم localhost
-      defaultUrl = 'http://localhost:8000/api';
+      defaultUrl = 'https://velorify.pro/api';
       print('🌐 ApiService.baseUrl: $defaultUrl (Web)');
     } else {
       // Mobile (Android/iOS)
-      // للـ Android Emulator: استخدم 10.0.2.2
-      // للـ iOS Simulator: استخدم 127.0.0.1 (يمكن تغييره إذا لزم الأمر)
-      // ⚠️ للجهاز الحقيقي: يجب استخدام setCustomBaseUrl() في main.dart
+      // كل المنصات تستخدم الآن العنوان الثابت للسيرفر الخارجي
       switch (defaultTargetPlatform) {
         case TargetPlatform.android:
-          defaultUrl = 'http://10.0.2.2:8000/api';
+          defaultUrl = 'https://velorify.pro/api';
           print('🌐 ApiService.baseUrl: $defaultUrl (Android Emulator)');
           break;
         case TargetPlatform.iOS:
-          defaultUrl = 'http://127.0.0.1:8000/api';
+          defaultUrl = 'https://velorify.pro/api';
           print('🌐 ApiService.baseUrl: $defaultUrl (iOS Simulator)');
           break;
         default:
-          defaultUrl = 'http://127.0.0.1:8000/api';
+          defaultUrl = 'https://velorify.pro/api';
           print(
             '🌐 ApiService.baseUrl: $defaultUrl (منصة غير معروفة - تم اختيار localhost)',
           );
           break;
       }
-      print('💡 للجهاز الحقيقي: استخدم setCustomBaseUrl() في main.dart');
+      print('💡 لتغيير العنوان استخدم setCustomBaseUrl() في main.dart');
     }
     return defaultUrl;
   }
@@ -185,17 +182,11 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════════
 
   Map<String, String> get _headers {
-    final headers = <String, String>{
+    return <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
     };
-
-    // إضافة ngrok-skip-browser-warning header إذا كان baseUrl يحتوي على ngrok
-    if (baseUrl.contains('ngrok')) {
-      headers['ngrok-skip-browser-warning'] = 'true';
-    }
-
-    return headers;
   }
 
   Map<String, String> get _headersWithAuth {
@@ -224,17 +215,24 @@ class ApiService {
   // ═══════════════════════════════════════════════════════════════════
 
   Future<dynamic> get(String endpoint, {bool requiresAuth = false}) async {
+    final client = http.Client();
     try {
-      final response = await http
-          .get(
-            Uri.parse('$baseUrl$endpoint'),
-            headers: requiresAuth ? _headersWithAuth : _headers,
-          )
+      final uri = Uri.parse('$baseUrl$endpoint');
+      final request =
+          http.Request('GET', uri)
+            ..followRedirects = false
+            ..headers.addAll(requiresAuth ? _headersWithAuth : _headers);
+
+      final streamedResponse = await client
+          .send(request)
           .timeout(AppConstants.apiTimeout);
 
+      final response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       throw _handleError(e);
+    } finally {
+      client.close();
     }
   }
 
@@ -243,6 +241,7 @@ class ApiService {
     dynamic body, {
     bool requiresAuth = false,
   }) async {
+    final client = http.Client();
     try {
       if (requiresAuth && !isAuthenticated) {
         await loadTokenFromStorage();
@@ -251,14 +250,21 @@ class ApiService {
       final url = '$baseUrl$endpoint';
       print('POST → $url');
       print('Body: ${json.encode(body)}');
+      print('Headers: ${requiresAuth ? _headersWithAuth : _headers}');
 
-      final response = await http
-          .post(
-            Uri.parse(url),
-            headers: requiresAuth ? _headersWithAuth : _headers,
-            body: json.encode(body),
-          )
+      final uri = Uri.parse(url);
+      final request =
+          http.Request('POST', uri)
+            ..followRedirects = false
+            ..headers.addAll(requiresAuth ? _headersWithAuth : _headers)
+            ..body = json.encode(body);
+
+      final streamedResponse = await client
+          .send(request)
           .timeout(AppConstants.apiTimeout);
+
+      final response = await http.Response.fromStream(streamedResponse);
+      print('Response Headers: ${response.headers}');
 
       print('📥 Response → ${response.statusCode}');
       print('Response Body: ${response.body}');
@@ -267,6 +273,8 @@ class ApiService {
     } catch (e) {
       print('❌ POST Error: $e');
       throw _handleError(e);
+    } finally {
+      client.close();
     }
   }
 
@@ -275,33 +283,47 @@ class ApiService {
     dynamic body, {
     bool requiresAuth = false,
   }) async {
+    final client = http.Client();
     try {
-      final response = await http
-          .put(
-            Uri.parse('$baseUrl$endpoint'),
-            headers: requiresAuth ? _headersWithAuth : _headers,
-            body: json.encode(body),
-          )
+      final uri = Uri.parse('$baseUrl$endpoint');
+      final request =
+          http.Request('PUT', uri)
+            ..followRedirects = false
+            ..headers.addAll(requiresAuth ? _headersWithAuth : _headers)
+            ..body = json.encode(body);
+
+      final streamedResponse = await client
+          .send(request)
           .timeout(AppConstants.apiTimeout);
 
+      final response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       throw _handleError(e);
+    } finally {
+      client.close();
     }
   }
 
   Future<dynamic> delete(String endpoint, {bool requiresAuth = false}) async {
+    final client = http.Client();
     try {
-      final response = await http
-          .delete(
-            Uri.parse('$baseUrl$endpoint'),
-            headers: requiresAuth ? _headersWithAuth : _headers,
-          )
+      final uri = Uri.parse('$baseUrl$endpoint');
+      final request =
+          http.Request('DELETE', uri)
+            ..followRedirects = false
+            ..headers.addAll(requiresAuth ? _headersWithAuth : _headers);
+
+      final streamedResponse = await client
+          .send(request)
           .timeout(AppConstants.apiTimeout);
 
+      final response = await http.Response.fromStream(streamedResponse);
       return _handleResponse(response);
     } catch (e) {
       throw _handleError(e);
+    } finally {
+      client.close();
     }
   }
 
@@ -316,6 +338,7 @@ class ApiService {
     required String passwordConfirmation,
     String? role,
     String? language,
+    String? phone,
   }) async {
     final body = {
       'name': name,
@@ -324,6 +347,7 @@ class ApiService {
       'password_confirmation': passwordConfirmation,
       if (role != null) 'role': role,
       if (language != null) 'language': language,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
     };
 
     print('📤 إرسال طلب التسجيل إلى Laravel:');
@@ -985,8 +1009,13 @@ class ApiService {
         try {
           return json.decode(response.body);
         } catch (e) {
-          print('Error decoding JSON: $e');
-          return {'status': 'success', 'data': response.body};
+          final snippet =
+              response.body.length > 300
+                  ? '${response.body.substring(0, 300)}...'
+                  : response.body;
+          print('⚠️ Error decoding JSON: $e');
+          print('⚠️ Response snippet: $snippet');
+          throw FormatException('الاستجابة ليست JSON صالح. المحتوى:\n$snippet');
         }
 
       case 204:
@@ -1035,26 +1064,7 @@ class ApiService {
 
       final Map<String, dynamic> body = json.decode(responseBody);
 
-      // Try different error message formats
-      // محاولة 1: message مباشرة
-      if (body.containsKey('message')) {
-        final message = body['message'];
-        if (message is String && message.isNotEmpty && message != 'null') {
-          print('✅ تم العثور على message: $message');
-          return message;
-        }
-      }
-
-      // محاولة 2: error مباشرة
-      if (body.containsKey('error')) {
-        final error = body['error'];
-        if (error is String && error.isNotEmpty && error != 'null') {
-          print('✅ تم العثور على error: $error');
-          return error;
-        }
-      }
-
-      // محاولة 3: errors (Laravel validation errors)
+      // محاولة 1: errors (Laravel validation errors)
       if (body.containsKey('errors')) {
         final errors = body['errors'];
         if (errors is Map && errors.isNotEmpty) {
@@ -1073,6 +1083,24 @@ class ApiService {
             print('✅ تم العثور على errors: $errorMsg');
             return errorMsg;
           }
+        }
+      }
+
+      // محاولة 2: message مباشرة
+      if (body.containsKey('message')) {
+        final message = body['message'];
+        if (message is String && message.isNotEmpty && message != 'null') {
+          print('✅ تم العثور على message: $message');
+          return message;
+        }
+      }
+
+      // محاولة 3: error مباشرة
+      if (body.containsKey('error')) {
+        final error = body['error'];
+        if (error is String && error.isNotEmpty && error != 'null') {
+          print('✅ تم العثور على error: $error');
+          return error;
         }
       }
 
@@ -1101,6 +1129,13 @@ class ApiService {
     print('Error occurred: $error');
     print('Error type: ${error.runtimeType}');
     print('Base URL: $baseUrl');
+
+    if (error is FormatException) {
+      final decoded = _decodePercentEncoded(error.message);
+      final message =
+          decoded ?? 'استجابة غير صالحة من الخادم. يرجى المحاولة لاحقاً.';
+      return ServerException(message);
+    }
 
     if (error is http.ClientException) {
       final errorMessage = error.message;
@@ -1137,6 +1172,20 @@ class ApiService {
     }
 
     return ServerException('حدث خطأ غير متوقع: ${error.toString()}');
+  }
+
+  String? _decodePercentEncoded(String? input) {
+    if (input == null || input.isEmpty) return null;
+    final percentPattern = RegExp(r'%[0-9A-Fa-f]{2}');
+    if (!percentPattern.hasMatch(input)) {
+      return null;
+    }
+
+    try {
+      return Uri.decodeComponent(input);
+    } catch (_) {
+      return null;
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════

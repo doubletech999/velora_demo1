@@ -10,6 +10,9 @@ import '../../../core/utils/responsive_utils.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/paths_provider.dart';
 import '../../providers/saved_paths_provider.dart';
+import '../../providers/trips_provider.dart';
+import '../../../data/models/trip_model.dart';
+import '../../widgets/trips/trip_details_modal.dart';
 import 'widgets/weather_widget.dart';
 import 'widgets/quick_stats_widget.dart';
 import 'widgets/featured_routes_section.dart';
@@ -58,6 +61,7 @@ class _HomeScreenState extends State<HomeScreen>
   Future<void> _loadDataGradually() async {
     // تحميل البيانات الأساسية أولاً
     final pathsProvider = Provider.of<PathsProvider>(context, listen: false);
+    final tripsProvider = Provider.of<TripsProvider>(context, listen: false);
 
     // تحميل البيانات إذا لم تكن محملة أو لم يتم التهيئة
     if (!pathsProvider.initialized && !pathsProvider.isLoading) {
@@ -70,9 +74,21 @@ class _HomeScreenState extends State<HomeScreen>
       await pathsProvider.loadPaths();
     } else {
       print('✅ HomeScreen: البيانات محملة بالفعل');
-      print('   - المسارات: ${pathsProvider.routesAndCamping.length}');
       print('   - المواقع: ${pathsProvider.sites.length}');
       print('   - المميزة: ${pathsProvider.featuredPaths.length}');
+    }
+
+    if (!tripsProvider.initialized && !tripsProvider.isLoading) {
+      print('🔄 HomeScreen: تحميل الرحلات...');
+      await tripsProvider.loadTrips();
+    } else if (tripsProvider.adventureTrips.isEmpty &&
+        !tripsProvider.isLoading) {
+      print('🔄 HomeScreen: الرحلات فارغة - إعادة تحميل...');
+      await tripsProvider.loadTrips();
+    } else {
+      print(
+        '✅ HomeScreen: الرحلات محملة (${tripsProvider.adventureTrips.length})',
+      );
     }
   }
 
@@ -95,7 +111,14 @@ class _HomeScreenState extends State<HomeScreen>
             context,
             listen: false,
           );
-          await pathsProvider.loadPaths();
+          final tripsProvider = Provider.of<TripsProvider>(
+            context,
+            listen: false,
+          );
+          await Future.wait([
+            pathsProvider.loadPaths(),
+            tripsProvider.loadTrips(),
+          ]);
         },
         child: CustomScrollView(
           controller: _scrollController,
@@ -123,6 +146,9 @@ class _HomeScreenState extends State<HomeScreen>
 
                 // أبرز المسارات (تحميل مُحسن)
                 const FeaturedRoutesSection(),
+
+                // الرحلات الشائعة
+                const OptimizedTrendingPaths(),
 
                 // أبرز المواقع السياحية
                 const FeaturedSitesSection(),
@@ -460,18 +486,16 @@ class OptimizedTrendingPaths extends StatelessWidget {
           const SizedBox(height: 12),
 
           // استخدام FutureBuilder للتحميل المحسن
-          Consumer<PathsProvider>(
-            builder: (context, pathsProvider, child) {
-              // Load paths if not already loaded
-              if (!pathsProvider.initialized && !pathsProvider.isLoading) {
+          Consumer<TripsProvider>(
+            builder: (context, tripsProvider, child) {
+              if (!tripsProvider.initialized && !tripsProvider.isLoading) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  pathsProvider.loadPaths();
+                  tripsProvider.loadTrips();
                 });
               }
 
-              // Show loading while fetching
-              if (pathsProvider.isLoading &&
-                  pathsProvider.featuredPaths.isEmpty) {
+              if (tripsProvider.isLoading &&
+                  tripsProvider.adventureTrips.isEmpty) {
                 return const Center(
                   child: Padding(
                     padding: EdgeInsets.all(20.0),
@@ -480,20 +504,15 @@ class OptimizedTrendingPaths extends StatelessWidget {
                 );
               }
 
-              // Use featuredPaths (المسارات والتخييمات المميزة) if available
-              // Otherwise use routesAndCamping sorted by rating
-              final allPaths =
-                  pathsProvider.featuredPaths.isNotEmpty
-                      ? pathsProvider.featuredPaths
-                      : pathsProvider.routesAndCamping;
+              final trips = tripsProvider.adventureTrips.toList()
+                ..sort(
+                  (a, b) =>
+                      (a.startDate ?? DateTime.now())
+                          .compareTo(b.startDate ?? DateTime.now()),
+                );
+              final trendingTrips = trips.take(3).toList();
 
-              // Sort by rating if using regular paths
-              final sortedPaths =
-                  allPaths.toList()
-                    ..sort((a, b) => b.rating.compareTo(a.rating));
-              final trendingPaths = sortedPaths.take(3).toList();
-
-              if (trendingPaths.isEmpty) {
+              if (trendingTrips.isEmpty) {
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(20.0),
@@ -506,116 +525,18 @@ class OptimizedTrendingPaths extends StatelessWidget {
               }
 
               return SizedBox(
-                height: 180,
-                child: ListView.builder(
+                height: 200,
+                child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  itemCount: trendingPaths.length,
+                  itemCount: trendingTrips.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
                   itemBuilder: (context, index) {
-                    final path = trendingPaths[index];
-                    return Container(
+                    final trip = trendingTrips[index];
+                    return SizedBox(
                       width: 280,
-                      margin: const EdgeInsets.only(right: 12),
-                      child: GestureDetector(
-                        onTap: () => context.go('/paths/${path.id}'),
-                        child: Card(
-                          clipBehavior: Clip.antiAlias,
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Stack(
-                            children: [
-                              // صورة المسار
-                              SizedBox(
-                                height: 180,
-                                width: double.infinity,
-                                child: Image.asset(
-                                  path.images.isNotEmpty
-                                      ? path.images[0]
-                                      : 'assets/images/logo.png',
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      color: Colors.grey[200],
-                                      child: const Center(
-                                        child: Icon(
-                                          PhosphorIcons.image,
-                                          color: Colors.grey,
-                                          size: 48,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-
-                              // تدرج شفاف
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                      colors: [
-                                        Colors.transparent,
-                                        Colors.black.withOpacity(0.7),
-                                      ],
-                                      stops: const [0.6, 1.0],
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              // معلومات المسار
-                              Positioned(
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                child: Container(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        path.nameAr,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        children: [
-                                          const Icon(
-                                            PhosphorIcons.map_pin,
-                                            color: Colors.white70,
-                                            size: 14,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              path.locationAr,
-                                              style: const TextStyle(
-                                                color: Colors.white70,
-                                                fontSize: 12,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                      child: _TripTrendingCard(
+                        trip: trip,
+                        onTap: () => showTripDetailsModal(context, trip),
                       ),
                     );
                   },
@@ -624,6 +545,178 @@ class OptimizedTrendingPaths extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TripTrendingCard extends StatelessWidget {
+  final TripModel trip;
+  final VoidCallback onTap;
+
+  const _TripTrendingCard({
+    required this.trip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Stack(
+          children: [
+            Positioned.fill(child: _TripCoverImage(imageUrl: trip.displayImage)),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.75),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.6],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 18,
+              left: 18,
+              right: 18,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    trip.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        PhosphorIcons.calendar_blank,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          trip.dateRange,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      if (trip.siteCount > 0)
+                        _TripChip(label: '${trip.siteCount} موقع'),
+                      if (trip.price != null)
+                        _TripChip(label: '${trip.price!.toStringAsFixed(2)} \$'),
+                      ...trip.activities.take(2).map(
+                        (activity) => _TripChip(
+                          label: activity.replaceAll('_', ' '),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TripCoverImage extends StatelessWidget {
+  final String imageUrl;
+
+  const _TripCoverImage({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _placeholder(),
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return _placeholder(spinner: true);
+        },
+      );
+    }
+
+    return Image.asset(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _placeholder(),
+    );
+  }
+
+  Widget _placeholder({bool spinner = false}) {
+    return Container(
+      color: AppColors.primary.withOpacity(0.15),
+      child: Center(
+        child:
+            spinner
+                ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                : const Icon(
+                  PhosphorIcons.image,
+                  color: Colors.white,
+                  size: 36,
+                ),
+      ),
+    );
+  }
+}
+
+class _TripChip extends StatelessWidget {
+  final String label;
+
+  const _TripChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

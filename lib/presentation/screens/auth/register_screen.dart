@@ -254,6 +254,10 @@ class _RegisterScreenState extends State<RegisterScreen>
         name: _nameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        phone:
+            _phoneController.text.trim().isEmpty
+                ? null
+                : _phoneController.text.trim(),
         language: 'ar', // اللغة الافتراضية
       );
 

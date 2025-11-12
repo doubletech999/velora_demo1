@@ -10,6 +10,8 @@ class PathsProvider extends ChangeNotifier {
 
   List<PathModel> _paths = [];
   List<PathModel> _sites = []; // الأماكن السياحية فقط
+  List<PathModel> _restaurants = [];
+  List<PathModel> _hotels = [];
   List<PathModel> _routesAndCamping = []; // المسارات والتخييمات
   List<PathModel> _featuredPaths = [];
   bool _isLoading = false;
@@ -24,6 +26,8 @@ class PathsProvider extends ChangeNotifier {
 
   List<PathModel> get paths => _paths;
   List<PathModel> get sites => _sites; // الأماكن السياحية
+  List<PathModel> get restaurants => _restaurants;
+  List<PathModel> get hotels => _hotels;
   List<PathModel> get routesAndCamping =>
       _routesAndCamping; // المسارات والتخييمات
   List<PathModel> get featuredPaths => _featuredPaths;
@@ -95,6 +99,54 @@ class PathsProvider extends ChangeNotifier {
     }).toList();
   }
 
+  List<PathModel> get filteredRestaurants {
+    return _restaurants.where((path) {
+      bool matchesLocation = _selectedLocation == null;
+      if (!matchesLocation && _selectedLocation != null) {
+        final locationAr = path.locationAr;
+        if (_selectedLocation == 'north') {
+          matchesLocation =
+              locationAr.contains('الشمال') || locationAr.contains('الجليل');
+        } else if (_selectedLocation == 'center') {
+          matchesLocation =
+              locationAr.contains('الوسط') ||
+              locationAr.contains('رام الله') ||
+              locationAr.contains('نابلس');
+        } else if (_selectedLocation == 'south') {
+          matchesLocation =
+              locationAr.contains('الجنوب') || locationAr.contains('الخليل');
+        } else {
+          matchesLocation = locationAr.contains(_selectedLocation!);
+        }
+      }
+      return matchesLocation;
+    }).toList();
+  }
+
+  List<PathModel> get filteredHotels {
+    return _hotels.where((path) {
+      bool matchesLocation = _selectedLocation == null;
+      if (!matchesLocation && _selectedLocation != null) {
+        final locationAr = path.locationAr;
+        if (_selectedLocation == 'north') {
+          matchesLocation =
+              locationAr.contains('الشمال') || locationAr.contains('الجليل');
+        } else if (_selectedLocation == 'center') {
+          matchesLocation =
+              locationAr.contains('الوسط') ||
+              locationAr.contains('رام الله') ||
+              locationAr.contains('نابلس');
+        } else if (_selectedLocation == 'south') {
+          matchesLocation =
+              locationAr.contains('الجنوب') || locationAr.contains('الخليل');
+        } else {
+          matchesLocation = locationAr.contains(_selectedLocation!);
+        }
+      }
+      return matchesLocation;
+    }).toList();
+  }
+
   /// فلترة المسارات والتخييمات
   List<PathModel> get filteredRoutesAndCamping {
     return _routesAndCamping.where((path) {
@@ -159,6 +211,12 @@ class PathsProvider extends ChangeNotifier {
       _sites = await _repository.getSites();
       print('✅ PathsProvider: تم جلب ${_sites.length} مكان سياحي');
 
+      _restaurants = await _repository.getRestaurants();
+      print('✅ PathsProvider: تم جلب ${_restaurants.length} مطعم');
+
+      _hotels = await _repository.getHotels();
+      print('✅ PathsProvider: تم جلب ${_hotels.length} فندق');
+
       // جلب المسارات والتخييمات
       _routesAndCamping = await _repository.getRoutesAndCamping();
       print('✅ PathsProvider: تم جلب ${_routesAndCamping.length} مسار/تخييم');
@@ -198,6 +256,22 @@ class PathsProvider extends ChangeNotifier {
                 return !path.activities.contains(ActivityType.hiking) &&
                     !path.activities.contains(ActivityType.camping) &&
                     path.length < 5.0;
+              }).toList();
+
+          _restaurants =
+              _paths.where((path) {
+                if (path.type != null) {
+                  return path.type!.toLowerCase() == 'restaurant';
+                }
+                return false;
+              }).toList();
+
+          _hotels =
+              _paths.where((path) {
+                if (path.type != null) {
+                  return path.type!.toLowerCase() == 'hotel';
+                }
+                return false;
               }).toList();
 
           _routesAndCamping =

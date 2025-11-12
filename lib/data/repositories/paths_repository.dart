@@ -371,6 +371,52 @@ class PathsRepository {
     }
   }
 
+  Future<List<PathModel>> getRestaurants() async {
+    if (useApi) {
+      try {
+        print('🔄 جلب المطاعم من API (type=restaurant)...');
+        final restaurants = await _fetchSitesFromApi(type: 'restaurant', search: null);
+        print('✅ PathsRepository: تم جلب ${restaurants.length} مطعم');
+        return restaurants;
+      } catch (e) {
+        print('❌ PathsRepository: خطأ في جلب المطاعم: $e');
+        return [];
+      }
+    } else if (useDummyDataAsFallback) {
+      final allPaths = await _getDummyPaths();
+      return allPaths.where((path) {
+        if (path.type != null) {
+          return path.type!.toLowerCase() == 'restaurant';
+        }
+        return false;
+      }).toList();
+    }
+    return [];
+  }
+
+  Future<List<PathModel>> getHotels() async {
+    if (useApi) {
+      try {
+        print('🔄 جلب الفنادق من API (type=hotel)...');
+        final hotels = await _fetchSitesFromApi(type: 'hotel', search: null);
+        print('✅ PathsRepository: تم جلب ${hotels.length} فندق');
+        return hotels;
+      } catch (e) {
+        print('❌ PathsRepository: خطأ في جلب الفنادق: $e');
+        return [];
+      }
+    } else if (useDummyDataAsFallback) {
+      final allPaths = await _getDummyPaths();
+      return allPaths.where((path) {
+        if (path.type != null) {
+          return path.type!.toLowerCase() == 'hotel';
+        }
+        return false;
+      }).toList();
+    }
+    return [];
+  }
+
   /// الحصول على المسارات والتخييمات (type='route' أو type='camping')
   /// المسارات والتخييمات تأتي من sites table حيث type='route' أو type='camping'
   Future<List<PathModel>> getRoutesAndCamping() async {

@@ -69,7 +69,7 @@ class _MapScreenState extends State<MapScreen> {
     try {
       // الحصول على الموقع الحالي
       Position? position = await MapsService.getCurrentLocation();
-      if (position != null) {
+      if (position != null && !_isSimulatorDefaultPosition(position)) {
         setState(() {
           _userPosition = position;
           _currentLocation = gmap.LatLng(position.latitude, position.longitude);
@@ -98,6 +98,27 @@ class _MapScreenState extends State<MapScreen> {
         _moveFallbackMap(_fallbackCenter, zoom: _fallbackZoom);
       }
     }
+  }
+
+  bool _isSimulatorDefaultPosition(Position position) {
+    if (kIsWeb) return false;
+
+    final bool isCupertinoArea =
+        position.latitude >= 36.5 &&
+            position.latitude <= 38.5 &&
+            position.longitude >= -123.5 &&
+            position.longitude <= -121.0;
+
+    final bool isMountainViewArea =
+        position.latitude >= 37.0 &&
+            position.latitude <= 38.0 &&
+            position.longitude >= -123.0 &&
+            position.longitude <= -121.5;
+
+    return (!kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.iOS ||
+                defaultTargetPlatform == TargetPlatform.android)) &&
+        (isCupertinoArea || isMountainViewArea);
   }
 
   Future<void> _loadPaths() async {

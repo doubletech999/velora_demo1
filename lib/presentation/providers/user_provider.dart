@@ -96,6 +96,7 @@ class UserProvider extends ChangeNotifier {
     required String name,
     required String email,
     required String password,
+    String? phone,
     String? role,
     String? language,
   }) async {
@@ -112,6 +113,7 @@ class UserProvider extends ChangeNotifier {
         name,
         email,
         password,
+        phone: phone,
         role: role,
         language: language ?? 'ar',
       );

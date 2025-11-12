@@ -1,17 +1,18 @@
-// lib/presentation/screens/explore/explore_screen.dart - النسخة النهائية
 import 'package:flutter/material.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../../data/models/path_model.dart';
-import '../../../data/models/activity_model.dart';
+import '../../../data/models/trip_model.dart';
 import '../../providers/paths_provider.dart';
+import '../../providers/trips_provider.dart';
 import '../../widgets/common/loading_indicator.dart';
-import 'widgets/explore_card.dart';
+import '../../widgets/trips/trip_card.dart';
+import '../../widgets/trips/trip_details_modal.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -20,891 +21,1425 @@ class ExploreScreen extends StatefulWidget {
   State<ExploreScreen> createState() => _ExploreScreenState();
 }
 
-class _ExploreScreenState extends State<ExploreScreen>
-    with SingleTickerProviderStateMixin {
+class _ExploreScreenState extends State<ExploreScreen> {
+  final PageController _pageController = PageController();
+  final ValueNotifier<int> _currentPage = ValueNotifier<int>(0);
   final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  ActivityType? selectedActivity;
-  DifficultyLevel? selectedDifficulty;
-  String? selectedLocation;
 
-  late TabController _tabController;
+  int _selectedCategory = 0;
+  String _searchQuery = '';
+
+  final List<_CategoryItem> _categories = const [
+    _CategoryItem(icon: PhosphorIcons.map_trifold_bold, label: 'رحلات'),
+    _CategoryItem(icon: PhosphorIcons.buildings_bold, label: 'سياحة'),
+    _CategoryItem(icon: Icons.restaurant, label: 'مطاعم'),
+    _CategoryItem(icon: Icons.hotel, label: 'فنادق'),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+
     _searchController.addListener(() {
       setState(() {
-        _searchQuery = _searchController.text.toLowerCase();
+        _searchQuery = _searchController.text.trim().toLowerCase();
       });
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PathsProvider>().initializeIfNeeded();
+      context.read<TripsProvider>().initializeIfNeeded();
     });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _tabController.dispose();
+    _pageController.dispose();
+    _currentPage.dispose();
     super.dispose();
-  }
-
-  List<PathModel> _getFilteredPaths(List<PathModel> allPaths) {
-    return allPaths.where((path) {
-      // فلترة بناءً على البحث
-      bool matchesSearch =
-          _searchQuery.isEmpty ||
-          path.nameAr.toLowerCase().contains(_searchQuery) ||
-          path.name.toLowerCase().contains(_searchQuery) ||
-          path.descriptionAr.toLowerCase().contains(_searchQuery) ||
-          path.locationAr.toLowerCase().contains(_searchQuery);
-
-      // فلترة بناءً على النشاط
-      bool matchesActivity =
-          selectedActivity == null ||
-          path.activities.contains(selectedActivity);
-
-      // فلترة بناءً على الصعوبة
-      bool matchesDifficulty =
-          selectedDifficulty == null || path.difficulty == selectedDifficulty;
-
-      // فلترة بناءً على الموقع
-      bool matchesLocation = selectedLocation == null;
-      if (!matchesLocation && selectedLocation != null) {
-        // Check if path location matches the selected region
-        final locationAr = path.locationAr;
-        if (selectedLocation == 'north') {
-          matchesLocation =
-              locationAr.contains('الشمال') || locationAr.contains('الجليل');
-        } else if (selectedLocation == 'center') {
-          matchesLocation =
-              locationAr.contains('الوسط') ||
-              locationAr.contains('رام الله') ||
-              locationAr.contains('نابلس');
-        } else if (selectedLocation == 'south') {
-          matchesLocation =
-              locationAr.contains('الجنوب') || locationAr.contains('الخليل');
-        }
-      }
-
-      return matchesSearch &&
-          matchesActivity &&
-          matchesDifficulty &&
-          matchesLocation;
-    }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     ResponsiveUtils.init(context);
-    final theme = Theme.of(context);
+    final localizations = AppLocalizations.ofOrThrow(context);
+    final pathsProvider = context.watch<PathsProvider>();
+    final tripsProvider = context.watch<TripsProvider>();
+
+    final bool pathsLoading =
+        pathsProvider.isLoading && !pathsProvider.initialized;
+    final bool pathsHasError =
+        !pathsLoading &&
+        pathsProvider.error != null &&
+        pathsProvider.error!.isNotEmpty;
+
+    final List<TripModel> trips =
+        _applyTripSearch(tripsProvider.adventureTrips).toList();
+    final bool tripsLoading = tripsProvider.isLoading && trips.isEmpty;
+    final bool tripsHasError = tripsProvider.error != null && trips.isEmpty;
+
+    final List<PathModel> sites =
+        _applySearch(pathsProvider.filteredSites).toList();
+    final List<PathModel> restaurants =
+        _applySearch(pathsProvider.filteredRestaurants).toList();
+    final List<PathModel> hotels =
+        _applySearch(pathsProvider.filteredHotels).toList();
+
+    final sections = [
+      _SectionData(
+        sliderTitle: 'أماكن سياحية مميزة',
+        listTitle: 'أماكن سياحية',
+        emptyMessage: 'لا توجد أماكن سياحية متاحة حالياً.',
+        items: sites,
+      ),
+      _SectionData(
+        sliderTitle: 'مطاعم ننصح بها',
+        listTitle: 'مطاعم مميزة',
+        emptyMessage: 'لا توجد مطاعم متاحة حالياً.',
+        items: restaurants,
+      ),
+      _SectionData(
+        sliderTitle: 'فنادق مختارة',
+        listTitle: 'فنادق للإقامة',
+        emptyMessage: 'لا توجد فنادق متاحة حالياً.',
+        items: hotels,
+      ),
+    ];
+
+    final bool onTripsCategory = _selectedCategory == 0;
+    final List<_SectionData> secondarySections =
+        onTripsCategory
+            ? sections
+            : [
+              for (int i = 0; i < sections.length; i++)
+                if (i != _selectedCategory - 1) sections[i],
+            ];
+
+    final bool hasAnyItems =
+        onTripsCategory
+            ? trips.isNotEmpty
+            : sections[_selectedCategory - 1].items.isNotEmpty;
+    final bool isLoadingSelected =
+        onTripsCategory
+            ? tripsLoading
+            : pathsLoading && !sections[_selectedCategory - 1].items.isNotEmpty;
+    final bool hasErrorSelected =
+        onTripsCategory
+            ? tripsHasError
+            : pathsHasError &&
+                !sections[_selectedCategory - 1].items.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          final pathsProvider = Provider.of<PathsProvider>(
-            context,
-            listen: false,
-          );
-          await pathsProvider.loadPaths();
-        },
-        child: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) {
-            return [
-              // شريط التطبيق
-              SliverAppBar(
-                expandedHeight: 60,
-                pinned: true,
-                backgroundColor: theme.colorScheme.surface,
-                elevation: 0,
-                title: Row(
-                  children: [
-                    Text(
-                      AppLocalizations.ofOrThrow(context).get('explore'),
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 24,
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            if (_searchQuery.isNotEmpty) _buildActiveSearchChip(),
+            SizedBox(
+              height: context.responsive(mobile: 16, tablet: 24, desktop: 32),
+            ),
+            _buildCategoryBar(),
+            SizedBox(
+              height: context.responsive(mobile: 16, tablet: 24, desktop: 32),
+            ),
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  if (onTripsCategory) {
+                    if (tripsLoading && trips.isEmpty) {
+                      return const LoadingIndicator(
+                        message: 'جاري تحميل الرحلات...',
+                      );
+                    }
+
+                    if (tripsHasError && trips.isEmpty) {
+                      return _buildErrorState(
+                        tripsProvider.error ?? 'فشل تحميل الرحلات',
+                        localizations,
+                      );
+                    }
+
+                    if (!tripsLoading && trips.isEmpty) {
+                      return _buildEmptyState(localizations);
+                    }
+
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.responsive(
+                          mobile: 20,
+                          tablet: MediaQuery.of(context).size.width * 0.1,
+                          desktop: MediaQuery.of(context).size.width * 0.2,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      PhosphorIcons.compass,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
-                  ],
-                ),
-                actions: [
-                  IconButton(
-                    icon: Stack(
-                      children: [
-                        Icon(PhosphorIcons.funnel, color: AppColors.primary),
-                        if (selectedActivity != null ||
-                            selectedDifficulty != null ||
-                            selectedLocation != null)
-                          Positioned(
-                            top: 0,
-                            right: 0,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: AppColors.secondary,
-                                shape: BoxShape.circle,
-                              ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle('رحلات مميزة'),
+                          SizedBox(
+                            height: context.responsive(
+                              mobile: 12,
+                              tablet: 16,
+                              desktop: 20,
                             ),
                           ),
+                          _buildTripSlider(trips),
+                          SizedBox(
+                            height: context.responsive(
+                              mobile: 24,
+                              tablet: 32,
+                              desktop: 40,
+                            ),
+                          ),
+                          _buildSectionTitle('جميع الرحلات'),
+                          SizedBox(
+                            height: context.responsive(
+                              mobile: 12,
+                              tablet: 16,
+                              desktop: 20,
+                            ),
+                          ),
+                          _buildTripList(trips),
+                          SizedBox(
+                            height: context.responsive(
+                              mobile: 40,
+                              tablet: 48,
+                              desktop: 56,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  if (isLoadingSelected && !hasAnyItems) {
+                    return const LoadingIndicator(
+                      message: 'جاري تحميل البيانات...',
+                    );
+                  }
+
+                  if (hasErrorSelected && !hasAnyItems) {
+                    return _buildErrorState(
+                      pathsProvider.error ?? 'فشل تحميل البيانات',
+                      localizations,
+                    );
+                  }
+
+                  if (!isLoadingSelected && !hasAnyItems) {
+                    return _buildEmptyState(localizations);
+                  }
+
+                  final primarySection = sections[_selectedCategory - 1];
+
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.responsive(
+                        mobile: 20,
+                        tablet: MediaQuery.of(context).size.width * 0.1,
+                        desktop: MediaQuery.of(context).size.width * 0.2,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSectionTitle(primarySection.sliderTitle),
+                        SizedBox(
+                          height: context.responsive(
+                            mobile: 12,
+                            tablet: 16,
+                            desktop: 20,
+                          ),
+                        ),
+                        _buildSlider(
+                          _topPaths(primarySection.items),
+                          pathsLoading,
+                          pathsHasError,
+                          primarySection.emptyMessage,
+                        ),
+                        SizedBox(
+                          height: context.responsive(
+                            mobile: 24,
+                            tablet: 32,
+                            desktop: 40,
+                          ),
+                        ),
+                        for (final section in secondarySections) ...[
+                          _buildSectionTitle(section.listTitle),
+                          SizedBox(
+                            height: context.responsive(
+                              mobile: 12,
+                              tablet: 16,
+                              desktop: 20,
+                            ),
+                          ),
+                          _buildHighlightsGrid(
+                            section.items,
+                            pathsLoading,
+                            pathsHasError,
+                            section.emptyMessage,
+                          ),
+                          SizedBox(
+                            height: context.responsive(
+                              mobile: 24,
+                              tablet: 32,
+                              desktop: 40,
+                            ),
+                          ),
+                        ],
+                        SizedBox(
+                          height: context.responsive(
+                            mobile: 40,
+                            tablet: 48,
+                            desktop: 56,
+                          ),
+                        ),
                       ],
                     ),
-                    onPressed: _showFilterBottomSheet,
-                  ),
-                ],
+                  );
+                },
               ),
-
-              // شريط البحث
-              SliverToBoxAdapter(
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  color: theme.colorScheme.surface,
-                  child: _buildSearchBar(context),
-                ),
-              ),
-
-              // شريط التبويبات
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _SliverAppBarDelegate(
-                  Container(
-                    color: theme.colorScheme.surface,
-                    child: TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      indicator: UnderlineTabIndicator(
-                        borderSide: BorderSide(
-                          color: AppColors.primary,
-                          width: 3,
-                        ),
-                        insets: const EdgeInsets.symmetric(horizontal: 20),
-                      ),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 16),
-                      labelColor: AppColors.primary,
-                      unselectedLabelColor: AppColors.textSecondary,
-                      labelStyle: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.normal,
-                        fontSize: 14,
-                      ),
-                      tabs: [
-                        // التبويب الأساسي: المسارات والتخييم
-                        Tab(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(PhosphorIcons.map_pin, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                AppLocalizations.ofOrThrow(
-                                  context,
-                                ).get('routes_camping_tab'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        // التبويب الثانوي: الأماكن السياحية
-                        Tab(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(PhosphorIcons.buildings, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                AppLocalizations.ofOrThrow(
-                                  context,
-                                ).get('sites_tab'),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(PhosphorIcons.compass, size: 18),
-                              const SizedBox(width: 6),
-                              Text(
-                                AppLocalizations.ofOrThrow(
-                                  context,
-                                ).get('activities_tab'),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ];
-          },
-          body: Consumer<PathsProvider>(
-            builder: (context, pathsProvider, child) {
-              if (pathsProvider.isLoading) {
-                return const LoadingIndicator();
-              }
-
-              final allPaths = pathsProvider.paths;
-              final filteredSites = pathsProvider.filteredSites;
-              final filteredRoutesAndCamping =
-                  pathsProvider.filteredRoutesAndCamping;
-
-              return TabBarView(
-                controller: _tabController,
-                children: [
-                  // التبويب الأساسي: المسارات والتخييم
-                  _buildRoutesAndCampingTab(filteredRoutesAndCamping),
-
-                  // التبويب الثانوي: الأماكن السياحية
-                  _buildSitesTab(filteredSites),
-
-                  // تبويب الأنشطة
-                  _buildActivitiesTab(allPaths),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchBar(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: isDark ? theme.colorScheme.surface : Colors.grey[100],
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: AppLocalizations.ofOrThrow(
-            context,
-          ).get('search_paths_placeholder'),
-          hintStyle: TextStyle(
-            color:
-                isDark
-                    ? theme.textTheme.bodyMedium?.color?.withOpacity(0.4)
-                    : Colors.grey[400],
-            fontSize: 15,
-          ),
-          prefixIcon: Icon(
-            PhosphorIcons.magnifying_glass,
-            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6),
-            size: 20,
-          ),
-          suffixIcon:
-              _searchQuery.isNotEmpty
-                  ? IconButton(
-                    icon: Icon(
-                      PhosphorIcons.x,
-                      color: theme.textTheme.bodyMedium?.color?.withOpacity(
-                        0.6,
-                      ),
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      _searchController.clear();
-                    },
-                  )
-                  : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 14,
-          ),
-        ),
-        style: TextStyle(fontSize: 15, color: theme.textTheme.bodyLarge?.color),
-      ),
-    );
-  }
-
-  Widget _buildSitesTab(List<PathModel> filteredSites) {
-    final localizations = AppLocalizations.ofOrThrow(context);
-    if (filteredSites.isEmpty) {
-      return _buildEmptyState(
-        icon: PhosphorIcons.buildings,
-        title: localizations.get('no_sites_available'),
-        subtitle: localizations.get('try_changing_filters'),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-      itemCount: filteredSites.length,
-      itemBuilder: (context, index) {
-        final path = filteredSites[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: ExploreCard(
-            path: path,
-            onTap: () => context.go('/paths/${path.id}'),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRoutesAndCampingTab(List<PathModel> filteredRoutesAndCamping) {
-    final localizations = AppLocalizations.ofOrThrow(context);
-    if (filteredRoutesAndCamping.isEmpty) {
-      return _buildEmptyState(
-        icon: PhosphorIcons.map_pin,
-        title: localizations.get('no_routes_available'),
-        subtitle: localizations.get('try_changing_filters'),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-      itemCount: filteredRoutesAndCamping.length,
-      itemBuilder: (context, index) {
-        final path = filteredRoutesAndCamping[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: ExploreCard(
-            path: path,
-            onTap: () => context.go('/paths/${path.id}'),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildActivitiesTab(List<PathModel> allPaths) {
-    final activities = ActivityModel.getAllActivities();
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: context.verticalCardAspectRatio,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: activities.length,
-      itemBuilder: (context, index) {
-        final activity = activities[index];
-        final pathsCount =
-            allPaths
-                .where(
-                  (path) => path.activities.contains(
-                    ActivityType.values.byName(activity.id),
-                  ),
-                )
-                .length;
-
-        return _buildActivityCard(activity, pathsCount);
-      },
-    );
-  }
-
-  Widget _buildActivityCard(ActivityModel activity, int pathsCount) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final colorScheme = theme.colorScheme;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedActivity = ActivityType.values.byName(activity.id);
-          _tabController.animateTo(0);
-        });
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color:
-                  isDark
-                      ? Colors.black.withOpacity(0.3)
-                      : Colors.black.withOpacity(0.03),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: activity.color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(activity.icon, color: activity.color, size: 28),
-              ),
-              const SizedBox(height: 12),
-              Flexible(
-                child: Text(
-                  AppLocalizations.ofOrThrow(context).get(activity.id),
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                AppLocalizations.ofOrThrow(context)
-                    .get('path_count_available')
-                    .replaceAll('{count}', pathsCount.toString()),
-                style: TextStyle(
-                  color: colorScheme.onSurface.withOpacity(0.7),
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
 
-  Widget _buildEmptyState({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildTopBar(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.responsive(
+          mobile: 20,
+          tablet: MediaQuery.of(context).size.width * 0.1,
+          desktop: MediaQuery.of(context).size.width * 0.2,
+        ),
+        vertical: 8,
+      ),
+      child: Row(
         children: [
+          _roundIconButton(
+            icon: PhosphorIcons.sliders_horizontal_bold,
+            onTap: () => _showMessage('الإعدادات قيد التطوير حالياً'),
+          ),
+          const Spacer(),
           Container(
-            width: 80,
-            height: 80,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Icon(icon, size: 40, color: AppColors.primary),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset('assets/images/logo.png', width: 28, height: 28),
+                const SizedBox(width: 8),
+                const Text(
+                  'Velora',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-              fontSize: 14,
-            ),
-            textAlign: TextAlign.center,
+          const Spacer(),
+          _roundIconButton(
+            icon: PhosphorIcons.magnifying_glass_bold,
+            onTap: () => _openSearchSheet(),
           ),
         ],
       ),
     );
   }
 
-  void _showFilterBottomSheet() {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+  Widget _buildActiveSearchChip() {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.responsive(
+          mobile: 20,
+          tablet: MediaQuery.of(context).size.width * 0.1,
+          desktop: MediaQuery.of(context).size.width * 0.2,
+        ),
+      ),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Chip(
+          avatar: const Icon(PhosphorIcons.magnifying_glass, size: 18),
+          label: Text('بحث: $_searchQuery'),
+          deleteIcon: const Icon(Icons.close),
+          onDeleted: () => _searchController.clear(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
+  }
 
-    showModalBottomSheet(
+  Widget _buildCategoryBar() {
+    return SizedBox(
+      height: 72,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        scrollDirection: Axis.horizontal,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          final bool isSelected = index == _selectedCategory;
+          final Color backgroundColor =
+              isSelected ? AppColors.primary : Colors.white;
+          final Color foregroundColor =
+              isSelected ? Colors.white : AppColors.primary;
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _selectedCategory = index;
+              });
+            },
+            borderRadius: BorderRadius.circular(22),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(category.icon, color: foregroundColor, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    category.label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: foregroundColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemCount: _categories.length,
+      ),
+    );
+  }
+
+  List<PathModel> _topPaths(List<PathModel> source) {
+    final List<PathModel> sorted = List<PathModel>.from(source);
+    sorted.sort((a, b) => b.rating.compareTo(a.rating));
+    return sorted.take(5).toList();
+  }
+
+  Iterable<TripModel> _applyTripSearch(List<TripModel> source) {
+    if (_searchQuery.isEmpty) {
+      return source;
+    }
+    final query = _searchQuery;
+    return source.where((trip) {
+      final fields = <String>[
+        trip.name,
+        if (trip.description != null) trip.description!,
+        if (trip.customRoute != null) trip.customRoute!,
+        if (trip.guideName != null) trip.guideName!,
+        if (trip.travelerName != null) trip.travelerName!,
+        ...trip.activities,
+        ...trip.sites.map((site) => site.displayName),
+      ];
+      return fields.any((field) => field.toLowerCase().contains(query));
+    });
+  }
+
+  Widget _buildSlider(
+    List<PathModel> paths,
+    bool isLoading,
+    bool hasError,
+    String emptyMessage,
+  ) {
+    final sliderHeight = context.responsive(
+      mobile: 220.0,
+      tablet: 320.0,
+      desktop: 360.0,
+    );
+
+    if (isLoading && paths.isEmpty) {
+      return SizedBox(height: sliderHeight, child: const LoadingIndicator());
+    }
+
+    if (paths.isEmpty) {
+      return _buildPlaceholderCard(
+        sliderHeight,
+        message: hasError ? 'تعذّر تحميل البيانات.' : emptyMessage,
+      );
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          height: sliderHeight,
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (value) => _currentPage.value = value,
+            itemCount: paths.length,
+            itemBuilder:
+                (context, index) => _SliderCard(
+                  path: paths[index],
+                  onTap: () => context.push('/paths/${paths[index].id}'),
+                  onFavorite:
+                      () => _showMessage(
+                        'تم حفظ ${paths[index].nameAr} في المفضلة',
+                      ),
+                  tags: _activityTags(paths[index]).take(3).toList(),
+                ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ValueListenableBuilder<int>(
+          valueListenable: _currentPage,
+          builder: (context, value, _) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(paths.length, (index) {
+                final isActive = index == value;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 8,
+                  width: isActive ? 18 : 8,
+                  decoration: BoxDecoration(
+                    color:
+                        isActive
+                            ? AppColors.primary
+                            : AppColors.primary.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                );
+              }),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTripSlider(List<TripModel> trips) {
+    final sliderTrips = trips.take(5).toList();
+    final sliderHeight = context.responsive(
+      mobile: 230.0,
+      tablet: 320.0,
+      desktop: 360.0,
+    );
+
+    if (sliderTrips.isEmpty) {
+      return _buildPlaceholderCard(
+        sliderHeight,
+        message: 'لا توجد رحلات متاحة حالياً.',
+      );
+    }
+
+    return Column(
+      children: [
+        SizedBox(
+          height: sliderHeight,
+          child: PageView.builder(
+            controller: _pageController,
+            onPageChanged: (value) => _currentPage.value = value,
+            itemCount: sliderTrips.length,
+            itemBuilder:
+                (context, index) => _TripSliderCard(
+                  trip: sliderTrips[index],
+                  onTap: () => _showTripDetails(sliderTrips[index]),
+                  tags: _tripTags(sliderTrips[index]).take(4).toList(),
+                ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ValueListenableBuilder<int>(
+          valueListenable: _currentPage,
+          builder: (context, value, _) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(sliderTrips.length, (index) {
+                final isActive = index == value;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 8,
+                  width: isActive ? 18 : 8,
+                  decoration: BoxDecoration(
+                    color:
+                        isActive
+                            ? AppColors.primary
+                            : AppColors.primary.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                );
+              }),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTripList(List<TripModel> trips) {
+    return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: trips.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 16),
+      itemBuilder: (context, index) {
+        final trip = trips[index];
+        return TripListCard(trip: trip, onTap: () => _showTripDetails(trip));
+      },
+    );
+  }
+
+  Widget _buildHighlightsGrid(
+    List<PathModel> paths,
+    bool isLoading,
+    bool hasError,
+    String emptyMessage,
+  ) {
+    final crossAxisCount = context.responsive(mobile: 2, tablet: 3, desktop: 4);
+    final spacing = context.responsive(
+      mobile: 16.0,
+      tablet: 20.0,
+      desktop: 24.0,
+    );
+
+    if (isLoading && paths.isEmpty) {
+      return const LoadingIndicator();
+    }
+
+    if (paths.isEmpty) {
+      return _buildPlaceholderCard(
+        180,
+        message:
+            hasError
+                ? 'تحقق من اتصالك بالإنترنت وحاول مرة أخرى.'
+                : emptyMessage,
+      );
+    }
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        crossAxisSpacing: spacing,
+        mainAxisSpacing: spacing,
+        childAspectRatio: 0.95,
+      ),
+      itemCount: paths.length,
+      itemBuilder: (context, index) {
+        final path = paths[index];
+        return _HighlightCard(
+          path: path,
+          tags: _activityTags(path).take(2).toList(),
+          onTap: () => context.push('/paths/${path.id}'),
+        );
+      },
+    );
+  }
+
+  Widget _buildPlaceholderCard(double height, {required String message}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            message,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Colors.black54,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String text) {
+    return Text(
+      text,
+      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+    );
+  }
+
+  Widget _buildErrorState(String error, AppLocalizations localizations) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              PhosphorIcons.warning_circle_bold,
+              size: 48,
+              color: AppColors.primary,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'حدث خطأ أثناء تحميل البيانات',
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(AppLocalizations localizations) {
+    final theme = Theme.of(context);
+    final width = MediaQuery.of(context).size.width;
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(
+        horizontal: context.responsive(
+          mobile: 24,
+          tablet: width * 0.2,
+          desktop: width * 0.25,
+        ),
+        vertical: context.responsive(mobile: 56, tablet: 80, desktop: 96),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(
+              PhosphorIcons.map_trifold_bold,
+              size: 56,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 28),
+          Text(
+            'لم نعثر على شيء هنا بعد!',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'يمكنك إعادة تعيين البحث أو تبديل التصنيف لرؤية أماكن أكثر تشويقاً.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.black54,
+              height: 1.6,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            alignment: WrapAlignment.center,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _resetFilters,
+                icon: const Icon(PhosphorIcons.arrow_counter_clockwise),
+                label: const Text('إعادة التصفية'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _openSearchSheet,
+                icon: const Icon(PhosphorIcons.magnifying_glass),
+                label: const Text('تعديل البحث'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _roundIconButton({
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: AppColors.primary),
+      ),
+    );
+  }
+
+  void _openSearchSheet() {
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      backgroundColor: colorScheme.surface,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setModalState) => Container(
-                  padding: const EdgeInsets.all(24),
+      builder: (sheetContext) {
+        final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: bottomInset + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(20),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // العنوان والخط المؤشر
-                      Row(
-                        children: [
-                          Container(
-                            width: 4,
-                            height: 24,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            AppLocalizations.ofOrThrow(
-                              context,
-                            ).get('filter_results'),
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
-                          ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(PhosphorIcons.x),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 32),
-
-                      // فلتر النشاط
-                      Text(
-                        AppLocalizations.ofOrThrow(
-                          context,
-                        ).get('filter_activity_type'),
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children:
-                            ActivityType.values.map((activity) {
-                              final isSelected = selectedActivity == activity;
-                              return _buildFilterChip(
-                                label: _getActivityText(activity, context),
-                                isSelected: isSelected,
-                                onSelected: (selected) {
-                                  setModalState(() {
-                                    setState(() {
-                                      selectedActivity =
-                                          selected ? activity : null;
-                                    });
-                                  });
-                                },
-                              );
-                            }).toList(),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // فلتر الصعوبة
-                      Text(
-                        AppLocalizations.ofOrThrow(
-                          context,
-                        ).get('filter_difficulty_level'),
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children:
-                            DifficultyLevel.values.map((difficulty) {
-                              final isSelected =
-                                  selectedDifficulty == difficulty;
-                              final color = _getDifficultyColor(difficulty);
-                              return _buildFilterChip(
-                                label: _getDifficultyText(difficulty, context),
-                                isSelected: isSelected,
-                                color: color,
-                                onSelected: (selected) {
-                                  setModalState(() {
-                                    setState(() {
-                                      selectedDifficulty =
-                                          selected ? difficulty : null;
-                                    });
-                                  });
-                                },
-                              );
-                            }).toList(),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // فلتر المنطقة
-                      Builder(
-                        builder: (context) {
-                          final localizations = AppLocalizations.ofOrThrow(
-                            context,
-                          );
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                localizations.get('region'),
-                                style: Theme.of(context).textTheme.titleMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 12),
-                              Wrap(
-                                spacing: 10,
-                                runSpacing: 10,
-                                children:
-                                    ['north', 'center', 'south'].map((
-                                      locationKey,
-                                    ) {
-                                      final location = localizations.get(
-                                        locationKey,
-                                      );
-                                      final isSelected =
-                                          selectedLocation == locationKey;
-                                      return _buildFilterChip(
-                                        label: location,
-                                        isSelected: isSelected,
-                                        onSelected: (selected) {
-                                          setModalState(() {
-                                            setState(() {
-                                              selectedLocation =
-                                                  selected ? locationKey : null;
-                                            });
-                                          });
-                                        },
-                                      );
-                                    }).toList(),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 40),
-
-                      // عداد النتائج
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(
-                            Theme.of(context).brightness == Brightness.dark
-                                ? 0.2
-                                : 0.05,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              PhosphorIcons.map_trifold,
-                              color: AppColors.primary,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Consumer<PathsProvider>(
-                              builder: (context, provider, child) {
-                                final filteredPaths = _getFilteredPaths(
-                                  provider.paths,
-                                );
-                                final localizations =
-                                    AppLocalizations.ofOrThrow(context);
-                                return Text(
-                                  localizations
-                                      .get('path_count_available')
-                                      .replaceAll(
-                                        '{count}',
-                                        filteredPaths.length.toString(),
-                                      ),
-                                  style: TextStyle(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // أزرار الإجراءات
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                setState(() {
-                                  selectedActivity = null;
-                                  selectedDifficulty = null;
-                                  selectedLocation = null;
-                                });
-                                Navigator.pop(context);
-                              },
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                AppLocalizations.ofOrThrow(
-                                  context,
-                                ).get('clear_filters'),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () => Navigator.pop(context),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                AppLocalizations.ofOrThrow(
-                                  context,
-                                ).get('apply_filters'),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                    ],
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: _searchController,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: 'ابحث عن مسار أو موقع...',
+                  prefixIcon: const Icon(PhosphorIcons.magnifying_glass),
+                  suffixIcon:
+                      _searchQuery.isNotEmpty
+                          ? IconButton(
+                            icon: const Icon(PhosphorIcons.x_circle),
+                            onPressed: () => _searchController.clear(),
+                          )
+                          : null,
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                onSubmitted: (_) => Navigator.of(sheetContext).pop(),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'نتائج تظهر مباشرة أثناء الكتابة.',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      _searchController.clear();
+                      Navigator.of(sheetContext).pop();
+                    },
+                    child: const Text('مسح'),
+                  ),
+                ],
+              ),
+            ],
           ),
+        );
+      },
     );
   }
 
-  Widget _buildFilterChip({
-    required String label,
-    required bool isSelected,
-    required Function(bool) onSelected,
-    Color? color,
-  }) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final chipColor = color ?? AppColors.primary;
-
-    return FilterChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? chipColor : colorScheme.onSurface,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
         ),
-      ),
-      selected: isSelected,
-      onSelected: onSelected,
-      backgroundColor: colorScheme.surface,
-      selectedColor: chipColor.withOpacity(
-        theme.brightness == Brightness.dark ? 0.2 : 0.1,
-      ),
-      checkmarkColor: chipColor,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(25),
-        side: BorderSide(
-          color: isSelected ? chipColor : colorScheme.outline.withOpacity(0.5),
-          width: 1,
-        ),
-      ),
-      elevation: 0,
-    );
+      );
   }
 
-  String _getActivityText(ActivityType activity, BuildContext context) {
-    final localizations = AppLocalizations.ofOrThrow(context);
+  void _resetFilters() {
+    setState(() {
+      _selectedCategory = 0;
+      _searchController.clear();
+      _searchQuery = '';
+    });
+  }
+
+  Iterable<PathModel> _applySearch(List<PathModel> source) {
+    if (_searchQuery.isEmpty) {
+      return source;
+    }
+    return source.where(_matchesSearch);
+  }
+
+  void _showTripDetails(TripModel trip) {
+    final tripsProvider = context.read<TripsProvider>();
+    final fallbackPath = tripsProvider.getFallbackPath(trip.id);
+    final registrationPathId = fallbackPath?.id ?? trip.primarySiteId;
+
+    VoidCallback? onRegister;
+    if (registrationPathId != null && registrationPathId.isNotEmpty) {
+      onRegister = () => context.push('/paths/$registrationPathId');
+    }
+
+    showTripDetailsModal(context, trip, onRegister: onRegister);
+  }
+
+  bool _matchesSearch(PathModel path) {
+    if (_searchQuery.isEmpty) return true;
+    final query = _searchQuery;
+    final fields = [path.name, path.nameAr, path.location, path.locationAr];
+    return fields.any((value) => value.toLowerCase().contains(query));
+  }
+
+  Iterable<String> _activityTags(PathModel path) {
+    return path.activities
+        .map(_activityLabel)
+        .where((label) => label.isNotEmpty);
+  }
+
+  String _activityLabel(ActivityType activity) {
     switch (activity) {
       case ActivityType.hiking:
-        return localizations.get('hiking');
+        return 'مسار';
       case ActivityType.camping:
-        return localizations.get('camping');
+        return 'تخييم';
       case ActivityType.climbing:
-        return localizations.get('climbing');
+        return 'تسلق';
       case ActivityType.religious:
-        return localizations.get('religious');
+        return 'زيارات دينية';
       case ActivityType.cultural:
-        return localizations.get('cultural');
+        return 'ثقافية';
       case ActivityType.nature:
-        return localizations.get('nature');
+        return 'طبيعة';
       case ActivityType.archaeological:
-        return localizations.get('archaeological');
+        return 'آثار';
     }
   }
 
-  String _getDifficultyText(DifficultyLevel difficulty, BuildContext context) {
-    final localizations = AppLocalizations.ofOrThrow(context);
-    switch (difficulty) {
-      case DifficultyLevel.easy:
-        return localizations.get('easy');
-      case DifficultyLevel.medium:
-        return localizations.get('medium');
-      case DifficultyLevel.hard:
-        return localizations.get('hard');
+  Iterable<String> _tripTags(TripModel trip) sync* {
+    if (trip.siteCount > 0) {
+      yield '${trip.siteCount} موقع';
     }
-  }
-
-  Color _getDifficultyColor(DifficultyLevel difficulty) {
-    switch (difficulty) {
-      case DifficultyLevel.easy:
-        return AppColors.difficultyEasy;
-      case DifficultyLevel.medium:
-        return AppColors.difficultyMedium;
-      case DifficultyLevel.hard:
-        return AppColors.difficultyHard;
+    if (trip.durationInDays > 0) {
+      yield '${trip.durationInDays} يوم';
+    }
+    for (final activity in trip.activities) {
+      yield activity.replaceAll('_', ' ');
     }
   }
 }
 
-class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  final Widget child;
+class _CategoryItem {
+  final IconData icon;
+  final String label;
 
-  _SliverAppBarDelegate(this.child);
+  const _CategoryItem({required this.icon, required this.label});
+}
+
+class _SectionData {
+  final String sliderTitle;
+  final String listTitle;
+  final String emptyMessage;
+  final List<PathModel> items;
+
+  _SectionData({
+    required this.sliderTitle,
+    required this.listTitle,
+    required this.emptyMessage,
+    required this.items,
+  });
+}
+
+class _SliderCard extends StatelessWidget {
+  final PathModel path;
+  final List<String> tags;
+  final VoidCallback onTap;
+  final VoidCallback onFavorite;
+
+  const _SliderCard({
+    required this.path,
+    required this.tags,
+    required this.onTap,
+    required this.onFavorite,
+  });
 
   @override
-  double get minExtent => 48;
-
-  @override
-  double get maxExtent => 48;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return child;
+  Widget build(BuildContext context) {
+    final imageUrl =
+        path.images.isNotEmpty ? path.images.first : 'assets/images/logo.png';
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: _PathImage(imageUrl: imageUrl),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.center,
+                  colors: [Colors.black.withOpacity(0.55), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Text(
+                path.nameAr.isNotEmpty ? path.nameAr : path.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          if (tags.isNotEmpty)
+            Positioned(
+              left: 16,
+              bottom: 16,
+              right: 16,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    tags
+                        .map(
+                          (tag) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.85),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Text(
+                              tag,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+              ),
+            ),
+          Positioned(
+            top: 16,
+            left: 16,
+            child: InkWell(
+              onTap: onFavorite,
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  PhosphorIcons.heart_straight_bold,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
+
+class _TripSliderCard extends StatelessWidget {
+  final TripModel trip;
+  final List<String> tags;
+  final VoidCallback onTap;
+
+  const _TripSliderCard({
+    required this.trip,
+    required this.tags,
+    required this.onTap,
+  });
 
   @override
-  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
-    return child != oldDelegate.child;
+  Widget build(BuildContext context) {
+    final imageUrl = trip.displayImage;
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: _PathImage(imageUrl: imageUrl),
+            ),
+          ),
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.center,
+                  colors: [Colors.black.withOpacity(0.55), Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.9),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Text(
+                trip.dateRange,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 16,
+            child: Text(
+              trip.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    blurRadius: 12,
+                    color: Colors.black54,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (tags.isNotEmpty)
+            Positioned(
+              left: 16,
+              bottom: 16,
+              right: 16,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    tags
+                        .map(
+                          (tag) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.85),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Text(
+                              tag,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HighlightCard extends StatelessWidget {
+  final PathModel path;
+  final List<String> tags;
+  final VoidCallback onTap;
+
+  const _HighlightCard({
+    required this.path,
+    required this.tags,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl =
+        path.images.isNotEmpty ? path.images.first : 'assets/images/logo.png';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+                child: _PathImage(imageUrl: imageUrl),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    path.nameAr.isNotEmpty ? path.nameAr : path.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        PhosphorIcons.map_pin,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          path.locationAr.isNotEmpty
+                              ? path.locationAr
+                              : path.location,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children:
+                        tags
+                            .map(
+                              (tag) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        PhosphorIcons.star_fill,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        path.rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '(${path.reviewCount})',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.black45,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PathImage extends StatelessWidget {
+  final String imageUrl;
+
+  const _PathImage({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.startsWith('http')) {
+      return Image.network(
+        imageUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) {
+          return Image.asset('assets/images/logo.png', fit: BoxFit.cover);
+        },
+      );
+    }
+
+    return Image.asset(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder:
+          (_, __, ___) =>
+              Image.asset('assets/images/logo.png', fit: BoxFit.cover),
+    );
   }
 }

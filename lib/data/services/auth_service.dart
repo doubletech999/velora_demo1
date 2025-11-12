@@ -27,6 +27,7 @@ class AuthService {
     required String name,
     required String email,
     required String password,
+    String? phone,
     String? role,
     String? language,
   }) async {
@@ -37,6 +38,7 @@ class AuthService {
         email: email,
         password: password,
         passwordConfirmation: password,
+        phone: phone,
         role: role,
         language: language ?? 'ar',
       );
