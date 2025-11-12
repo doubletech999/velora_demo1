@@ -130,8 +130,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
             : pathsHasError &&
                 !sections[_selectedCategory - 1].items.isNotEmpty;
 
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -307,6 +309,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildTopBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final surfaceColor = theme.colorScheme.surface;
+
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: context.responsive(
@@ -326,24 +332,38 @@ class _ExploreScreenState extends State<ExploreScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? surfaceColor.withOpacity(0.7) : theme.cardColor,
               borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              border: isDark
+                  ? Border.all(color: Colors.white.withOpacity(0.06))
+                  : null,
+              boxShadow: isDark
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 18,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Image.asset('assets/images/logo.png', width: 28, height: 28),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'Velora',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ),
@@ -359,6 +379,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildActiveSearchChip() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: context.responsive(
@@ -371,18 +394,30 @@ class _ExploreScreenState extends State<ExploreScreen> {
         alignment: Alignment.centerRight,
         child: Chip(
           avatar: const Icon(PhosphorIcons.magnifying_glass, size: 18),
+          backgroundColor: isDark
+              ? theme.colorScheme.surfaceVariant.withOpacity(0.5)
+              : theme.colorScheme.surface,
           label: Text('بحث: $_searchQuery'),
           deleteIcon: const Icon(Icons.close),
           onDeleted: () => _searchController.clear(),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
+          labelStyle: theme.textTheme.bodyMedium,
         ),
       ),
     );
   }
 
   Widget _buildCategoryBar() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final unselectedBackground = isDark
+        ? theme.colorScheme.surfaceVariant.withOpacity(0.35)
+        : theme.cardColor;
+    final unselectedForeground =
+        isDark ? theme.colorScheme.onSurface : AppColors.primary;
+
     return SizedBox(
       height: 72,
       child: ListView.separated(
@@ -392,9 +427,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
           final category = _categories[index];
           final bool isSelected = index == _selectedCategory;
           final Color backgroundColor =
-              isSelected ? AppColors.primary : Colors.white;
+              isSelected ? AppColors.primary : unselectedBackground;
           final Color foregroundColor =
-              isSelected ? Colors.white : AppColors.primary;
+              isSelected ? theme.colorScheme.onPrimary : unselectedForeground;
           return InkWell(
             onTap: () {
               setState(() {
@@ -408,13 +443,28 @@ class _ExploreScreenState extends State<ExploreScreen> {
               decoration: BoxDecoration(
                 color: backgroundColor,
                 borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                border: isSelected || !isDark
+                    ? null
+                    : Border.all(
+                        color: Colors.white.withOpacity(0.05),
+                      ),
+                boxShadow: isSelected && !isDark
+                    ? [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.28),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : isDark
+                        ? []
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -659,28 +709,42 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildPlaceholderCard(double height, {required String message}) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? Colors.white70;
+
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: isDark
+            ? Border.all(color: Colors.white.withOpacity(0.08))
+            : null,
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
       ),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Text(
             message,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              color: Colors.black54,
-            ),
+            style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ) ??
+                TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
+                ),
             textAlign: TextAlign.center,
           ),
         ),
@@ -689,13 +753,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
   }
 
   Widget _buildSectionTitle(String text) {
+    final theme = Theme.of(context);
     return Text(
       text,
-      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+      style: theme.textTheme.titleMedium?.copyWith(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
     );
   }
 
   Widget _buildErrorState(String error, AppLocalizations localizations) {
+    final theme = Theme.of(context);
+    final secondaryColor =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+            Colors.white70;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -716,9 +789,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
             const SizedBox(height: 8),
             Text(
               error,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: secondaryColor,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -730,6 +803,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Widget _buildEmptyState(AppLocalizations localizations) {
     final theme = Theme.of(context);
     final width = MediaQuery.of(context).size.width;
+    final isDark = theme.brightness == Brightness.dark;
+    final secondaryColor =
+        theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+            Colors.white70;
 
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(
@@ -746,15 +823,22 @@ class _ExploreScreenState extends State<ExploreScreen> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark
+                  ? theme.colorScheme.surfaceVariant.withOpacity(0.35)
+                  : theme.cardColor,
               shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+              border: isDark
+                  ? Border.all(color: Colors.white.withOpacity(0.08))
+                  : null,
+              boxShadow: isDark
+                  ? []
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
             ),
             child: const Icon(
               PhosphorIcons.map_trifold_bold,
@@ -774,7 +858,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
           Text(
             'يمكنك إعادة تعيين البحث أو تبديل التصنيف لرؤية أماكن أكثر تشويقاً.',
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.black54,
+              color: secondaryColor,
               height: 1.6,
             ),
             textAlign: TextAlign.center,
@@ -828,23 +912,36 @@ class _ExploreScreenState extends State<ExploreScreen> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor = isDark
+        ? theme.colorScheme.surfaceVariant.withOpacity(0.45)
+        : theme.cardColor;
+    final iconColor =
+        isDark ? theme.colorScheme.onSurface : AppColors.primary;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: backgroundColor,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
-            ),
-          ],
+          border: isDark
+              ? Border.all(color: Colors.white.withOpacity(0.05))
+              : null,
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
         ),
-        child: Icon(icon, color: AppColors.primary),
+        child: Icon(icon, color: iconColor),
       ),
     );
   }
@@ -858,6 +955,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
       ),
       builder: (sheetContext) {
         final bottomInset = MediaQuery.of(sheetContext).viewInsets.bottom;
+        final theme = Theme.of(sheetContext);
+        final isDark = theme.brightness == Brightness.dark;
         return Padding(
           padding: EdgeInsets.only(
             left: 20,
@@ -874,7 +973,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.black12,
+                    color: isDark
+                        ? Colors.white.withOpacity(0.2)
+                        : Colors.black12,
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -895,7 +996,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           )
                           : null,
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: isDark
+                      ? theme.colorScheme.surfaceVariant.withOpacity(0.6)
+                      : theme.colorScheme.surface,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
@@ -909,9 +1012,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   Expanded(
                     child: Text(
                       'نتائج تظهر مباشرة أثناء الكتابة.',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                  ),
                     ),
                   ),
                   TextButton(
@@ -1053,6 +1156,26 @@ class _SliderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final imageUrl =
         path.images.isNotEmpty ? path.images.first : 'assets/images/logo.png';
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final labelBackground = isDark
+        ? theme.colorScheme.surface.withOpacity(0.85)
+        : Colors.white.withOpacity(0.9);
+    final tagBackground = isDark
+        ? theme.colorScheme.surface.withOpacity(0.75)
+        : Colors.white.withOpacity(0.85);
+    final tagTextStyle = theme.textTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          color: AppColors.primary,
+        );
+    final favoriteBackground = isDark
+        ? theme.colorScheme.surface.withOpacity(0.75)
+        : Colors.white.withOpacity(0.9);
+    final titleStyle = theme.textTheme.titleMedium?.copyWith(
+      fontWeight: FontWeight.w700,
+      fontSize: 16,
+    );
     return GestureDetector(
       onTap: onTap,
       child: Stack(
@@ -1081,15 +1204,12 @@ class _SliderCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: labelBackground,
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Text(
                 path.nameAr.isNotEmpty ? path.nameAr : path.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
+                style: titleStyle,
               ),
             ),
           ),
@@ -1110,16 +1230,12 @@ class _SliderCard extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.85),
+                              color: tagBackground,
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Text(
                               tag,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                                color: AppColors.primary,
-                              ),
+                              style: tagTextStyle,
                             ),
                           ),
                         )
@@ -1135,7 +1251,7 @@ class _SliderCard extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.9),
+                  color: favoriteBackground,
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -1165,6 +1281,19 @@ class _TripSliderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = trip.displayImage;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final labelBackground = isDark
+        ? theme.colorScheme.surface.withOpacity(0.85)
+        : Colors.white.withOpacity(0.9);
+    final tagBackground = isDark
+        ? theme.colorScheme.surface.withOpacity(0.75)
+        : Colors.white.withOpacity(0.85);
+    final tagTextStyle = theme.textTheme.bodySmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+          color: AppColors.primary,
+        );
     return GestureDetector(
       onTap: onTap,
       child: Stack(
@@ -1193,7 +1322,7 @@ class _TripSliderCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: labelBackground,
                 borderRadius: BorderRadius.circular(18),
               ),
               child: Text(
@@ -1244,16 +1373,12 @@ class _TripSliderCard extends StatelessWidget {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.85),
+                              color: tagBackground,
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Text(
                               tag,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 12,
-                                color: AppColors.primary,
-                              ),
+                              style: tagTextStyle,
                             ),
                           ),
                         )
@@ -1281,20 +1406,33 @@ class _HighlightCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final imageUrl =
         path.images.isNotEmpty ? path.images.first : 'assets/images/logo.png';
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final secondaryColor =
+        theme.textTheme.bodySmall?.color?.withOpacity(0.7) ??
+            Colors.white70;
+    final reviewColor =
+        theme.textTheme.bodySmall?.color?.withOpacity(0.6) ??
+            Colors.white60;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.cardColor,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 6),
-            ),
-          ],
+          border: isDark
+              ? Border.all(color: Colors.white.withOpacity(0.08))
+              : null,
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1314,7 +1452,7 @@ class _HighlightCard extends StatelessWidget {
                 children: [
                   Text(
                     path.nameAr.isNotEmpty ? path.nameAr : path.name,
-                    style: const TextStyle(
+                    style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
@@ -1335,9 +1473,9 @@ class _HighlightCard extends StatelessWidget {
                           path.locationAr.isNotEmpty
                               ? path.locationAr
                               : path.location,
-                          style: const TextStyle(
+                          style: theme.textTheme.bodySmall?.copyWith(
                             fontSize: 12,
-                            color: Colors.black54,
+                            color: secondaryColor,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1384,7 +1522,7 @@ class _HighlightCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         path.rating.toStringAsFixed(1),
-                        style: const TextStyle(
+                        style: theme.textTheme.bodySmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
@@ -1392,9 +1530,9 @@ class _HighlightCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         '(${path.reviewCount})',
-                        style: const TextStyle(
+                        style: theme.textTheme.bodySmall?.copyWith(
                           fontSize: 11,
-                          color: Colors.black45,
+                          color: reviewColor,
                         ),
                       ),
                     ],
