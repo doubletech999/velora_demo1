@@ -29,6 +29,10 @@ class AppRouter {
   static final _rootNavigatorKey = GlobalKey<NavigatorState>();
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
+  // Getter for root navigator key (for FCM navigation)
+  // Getter للوصول إلى root navigator key (للتوجيه من FCM)
+  static GlobalKey<NavigatorState> get rootNavigatorKey => _rootNavigatorKey;
+
   static final router = GoRouter(
     initialLocation: '/splash',
     navigatorKey: _rootNavigatorKey,

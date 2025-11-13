@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/services/fcm_service.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
 
@@ -162,6 +163,17 @@ class AuthService {
       await saveUser(user);
       print('✅ AuthService: تم حفظ بيانات المستخدم');
 
+      // Send FCM token to backend after successful login
+      // إرسال FCM token للـ backend بعد تسجيل الدخول الناجح
+      try {
+        await FCMService.instance.sendTokenToBackend();
+        print('✅ AuthService: تم إرسال FCM token للـ backend');
+      } catch (e) {
+        print('⚠️ AuthService: فشل إرسال FCM token: $e');
+        // Don't fail login if FCM token sending fails
+        // لا تفشل عملية تسجيل الدخول إذا فشل إرسال FCM token
+      }
+
       return AuthLoginResult(
         success: true,
         message: response['message']?.toString() ?? 'تم تسجيل الدخول بنجاح',
@@ -252,6 +264,16 @@ class AuthService {
       // عند تسجيل الخروج، نحذف كل شيء (Token و User و rememberMe)
       // لأن المستخدم اختار تسجيل الخروج بشكل صريح
       print('🗑️ تسجيل الخروج - حذف جميع البيانات');
+      
+      // Delete FCM token when user logs out
+      // حذف FCM token عند تسجيل الخروج
+      try {
+        await FCMService.instance.deleteToken();
+        print('✅ تم حذف FCM token');
+      } catch (e) {
+        print('⚠️ فشل حذف FCM token: $e');
+      }
+      
       await clearToken();
       await clearUser();
       await clearRememberMe();

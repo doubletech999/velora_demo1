@@ -15,6 +15,10 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		CE27FACF2EC67A7F00E0E4F4 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = CE27FACE2EC67A7F00E0E4F4 /* FirebaseAnalytics */; };
+		CE27FAD12EC67A7F00E0E4F4 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = CE27FAD02EC67A7F00E0E4F4 /* FirebaseAuth */; };
+		CE27FAD32EC67A7F00E0E4F4 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = CE27FAD22EC67A7F00E0E4F4 /* FirebaseCore */; };
+		CE27FAD52EC67A7F00E0E4F4 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = CE27FAD42EC67A7F00E0E4F4 /* FirebaseMessaging */; };
 		D9F55C0862A9F9AB9385C4C9 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EEB93FC15433ED6D9AB4A85D /* Pods_Runner.framework */; };
 /* End PBXBuildFile section */
 
@@ -72,6 +76,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				CE27FACF2EC67A7F00E0E4F4 /* FirebaseAnalytics in Frameworks */,
+				CE27FAD12EC67A7F00E0E4F4 /* FirebaseAuth in Frameworks */,
+				CE27FAD52EC67A7F00E0E4F4 /* FirebaseMessaging in Frameworks */,
+				CE27FAD32EC67A7F00E0E4F4 /* FirebaseCore in Frameworks */,
 				D9F55C0862A9F9AB9385C4C9 /* Pods_Runner.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -238,6 +246,9 @@
 				Base,
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
+			packageReferences = (
+				CE27FACD2EC67A7F00E0E4F4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
 			productRefGroup = 97C146EF1CF9000F007C117D /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -278,9 +289,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -370,9 +385,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-Runner/Pods-Runner-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -490,14 +509,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = RTK3925U58;
+				DEVELOPMENT_TEAM = WN9Y66Z9A7;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.mahmoud.velora-";
+				PRODUCT_BUNDLE_IDENTIFIER = com.majed.velora;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -677,14 +696,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = RTK3925U58;
+				DEVELOPMENT_TEAM = WN9Y66Z9A7;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.mahmoud.velora-";
+				PRODUCT_BUNDLE_IDENTIFIER = com.majed.velora;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -700,14 +719,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				DEVELOPMENT_TEAM = RTK3925U58;
+				DEVELOPMENT_TEAM = WN9Y66Z9A7;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "com.mahmoud.velora-";
+				PRODUCT_BUNDLE_IDENTIFIER = com.majed.velora;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -749,6 +768,40 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CE27FACD2EC67A7F00E0E4F4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		CE27FACE2EC67A7F00E0E4F4 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE27FACD2EC67A7F00E0E4F4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
+		CE27FAD02EC67A7F00E0E4F4 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE27FACD2EC67A7F00E0E4F4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+		CE27FAD22EC67A7F00E0E4F4 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE27FACD2EC67A7F00E0E4F4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		CE27FAD42EC67A7F00E0E4F4 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE27FACD2EC67A7F00E0E4F4 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 97C146E61CF9000F007C117D /* Project object */;
 }

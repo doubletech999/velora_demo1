@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'app.dart';
 import 'core/constants/app_constants.dart';
@@ -17,11 +18,21 @@ import 'presentation/providers/trip_registration_provider.dart'; // إضافة �
 import 'presentation/providers/trips_provider.dart';
 import 'presentation/providers/reviews_provider.dart';
 import 'core/services/connectivity_service.dart';
+import 'core/services/fcm_service.dart';
 import 'data/services/auth_service.dart';
 import 'data/services/api_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Firebase
+  // تهيئة Firebase
+  try {
+    await Firebase.initializeApp();
+    print('✅ Firebase initialized successfully');
+  } catch (e) {
+    print('❌ Error initializing Firebase: $e');
+  }
 
   // Initialize connectivity service
   await ConnectivityService().initialize();
@@ -45,6 +56,22 @@ void main() async {
 
   // ✅ Initialize authentication service (يحمّل Token + Custom Base URL إن وجد)
   await AuthService.instance.initialize();
+
+  // Initialize FCM Service
+  // تهيئة خدمة FCM
+  try {
+    await FCMService.instance.initialize();
+    print('✅ FCM Service initialized successfully');
+
+    // Send FCM token to backend if user is logged in
+    // إرسال FCM token للـ backend إذا كان المستخدم مسجل دخول
+    final isLoggedIn = await AuthService.instance.isLoggedIn();
+    if (isLoggedIn) {
+      await FCMService.instance.sendTokenToBackend();
+    }
+  } catch (e) {
+    print('❌ Error initializing FCM Service: $e');
+  }
 
   // معالجة أخطاء التطبيق
   FlutterError.onError = (FlutterErrorDetails details) {
