@@ -584,15 +584,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 color: AppColors.primary,
               ),
             ),
-            SizedBox(width: context.responsive(mobile: 8, tablet: 12, desktop: 16)),
-            Expanded(
-              child: _StatItem(
-                value: user.achievements.toString(),
-                label: localizations.get('achievements'),
-                icon: PhosphorIcons.trophy,
-                color: Colors.amber,
-              ),
-            ),
           ],
         ),
       ),
@@ -682,20 +673,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             _buildDivider(),
 
-            // الإنجازات
-            _MenuItem(
-              icon: PhosphorIcons.trophy,
-              title: localizations.get('achievements'),
-              subtitle: languageProvider.isArabic 
-                ? 'الإنجازات التي حققتها'
-                : 'Achievements you have earned',
-              onTap: () {
-                if (!GuestGuard.check(context, feature: 'الإنجازات')) {
-                  return;
-                }
-                context.go('/profile/achievements');
-              },
-            ),
+            // Removed achievements menu item
+            // تم إزالة عنصر قائمة الإنجازات
           ],
         ),
       ),

@@ -18,6 +18,7 @@ import 'change_password_sheet.dart';
 import '../../providers/settings_provider.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/custom_switch.dart';
+import '../../../core/services/fcm_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -90,6 +91,88 @@ class _SettingsScreenState extends State<SettingsScreen>
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => const ChangePasswordSheet(),
+    );
+  }
+
+  Future<void> _showFCMTokenDialog(BuildContext context) async {
+    final token = FCMService.instance.fcmToken;
+    
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لم يتم الحصول على FCM Token بعد. تأكد من أن الإشعارات مفعلة.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(PhosphorIcons.key, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('FCM Token'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'استخدم هذا Token لاختبار الإشعارات من Firebase Console:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: SelectableText(
+                token,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '💡 نصيحة: انسخ Token وأرسل إشعار من Firebase Console',
+              style: TextStyle(fontSize: 11, color: Colors.blue),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('إغلاق'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: token));
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('✅ تم نسخ Token إلى الحافظة'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            },
+            icon: const Icon(PhosphorIcons.copy, size: 18),
+            label: const Text('نسخ'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -526,6 +609,19 @@ class _SettingsScreenState extends State<SettingsScreen>
                           activeColor: AppColors.primary,
                         ),
                       ),
+                    ),
+                    Divider(color: Theme.of(context).dividerTheme.color),
+
+                    // FCM Token for testing (Development only)
+                    // FCM Token للاختبار (للتطوير فقط)
+                    _SettingItem(
+                      title: 'FCM Token (للاختبار)',
+                      subtitle: 'عرض Token لاختبار الإشعارات',
+                      icon: PhosphorIcons.key,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _showFCMTokenDialog(context);
+                      },
                     ),
                     Divider(color: Theme.of(context).dividerTheme.color),
 

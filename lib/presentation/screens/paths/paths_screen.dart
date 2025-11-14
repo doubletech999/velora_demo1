@@ -135,70 +135,88 @@ class _PathsScreenState extends State<PathsScreen> {
       appBar: AppBar(title: Text(localizations.get('paths'))),
       body: Consumer2<TripsProvider, PathsProvider>(
         builder: (context, tripsProvider, pathsProvider, child) {
-          final List<TripModel> trips = tripsProvider.adventureTrips;
-          final List<PathModel> fallbackPaths =
+          // Get all trips (not just adventure trips) - جميع الرحلات من Trips
+          final List<TripModel> allTrips = tripsProvider.trips;
+          // Get routes and camping from PathsProvider as fallback
+          // الحصول على المسارات والتخييمات من PathsProvider كبديل
+          final List<PathModel> routesAndCamping =
               pathsProvider.filteredRoutesAndCamping;
 
-          final bool hasTrips = trips.isNotEmpty;
-          final bool hasFallbackPaths = fallbackPaths.isNotEmpty;
+          final bool hasTrips = allTrips.isNotEmpty;
+          final bool hasRoutesAndCamping = routesAndCamping.isNotEmpty;
 
-          if (tripsProvider.isLoading && !hasTrips && !hasFallbackPaths) {
+          if (tripsProvider.isLoading && !hasTrips && !hasRoutesAndCamping) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!hasTrips && hasFallbackPaths) {
-            return RefreshIndicator(
-              onRefresh: () async {
+          // Combine trips and routes/camping
+          // دمج الرحلات والمسارات/التخييمات
+          final List<dynamic> allItems = [];
+          
+          // Add trips first
+          allItems.addAll(allTrips);
+          
+          // Add routes and camping as fallback
+          allItems.addAll(routesAndCamping);
+
+          if (allItems.isEmpty) {
+            return _EmptyRoutesPlaceholder(
+              onExploreTap: () => context.go('/explore'),
+              onReload: () async {
                 await Future.wait([
                   tripsProvider.loadTrips(),
                   pathsProvider.loadPaths(),
                 ]);
               },
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: fallbackPaths.length,
-                itemBuilder:
-                    (context, index) => PathCard(path: fallbackPaths[index]),
-              ),
-            );
-          }
-
-          if (!hasTrips) {
-            return _EmptyRoutesPlaceholder(
-              onExploreTap: () => context.go('/explore'),
-              onReload: () => tripsProvider.loadTrips(),
             );
           }
 
           return RefreshIndicator(
             onRefresh: () async {
-              await tripsProvider.loadTrips();
+              await Future.wait([
+                tripsProvider.loadTrips(),
+                pathsProvider.loadPaths(),
+              ]);
             },
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: trips.length,
+              itemCount: allItems.length,
               itemBuilder: (context, index) {
-                final trip = trips[index];
-                final fallbackPath = tripsProvider.getFallbackPath(trip.id);
-                final registrationPathId =
-                    fallbackPath?.id ?? trip.primarySiteId;
-                VoidCallback? onRegister;
-                if (registrationPathId != null &&
-                    registrationPathId.isNotEmpty) {
-                  onRegister = () => context.go('/paths/$registrationPathId');
+                final item = allItems[index];
+                
+                // If it's a TripModel, show trip card
+                if (item is TripModel) {
+                  final trip = item;
+                  final fallbackPath = tripsProvider.getFallbackPath(trip.id);
+                  final registrationPathId =
+                      fallbackPath?.id ?? trip.primarySiteId;
+                  VoidCallback? onRegister;
+                  if (registrationPathId != null &&
+                      registrationPathId.isNotEmpty) {
+                    onRegister = () => context.go('/paths/$registrationPathId');
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: TripListCard(
+                      trip: trip,
+                      onTap: () => showTripDetailsModal(
+                        context,
+                        trip,
+                        onRegister: onRegister,
+                      ),
+                    ),
+                  );
                 }
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: TripListCard(
-                    trip: trip,
-                    onTap:
-                        () => showTripDetailsModal(
-                          context,
-                          trip,
-                          onRegister: onRegister,
-                        ),
-                  ),
-                );
+                
+                // If it's a PathModel, show path card
+                if (item is PathModel) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: PathCard(path: item),
+                  );
+                }
+                
+                return const SizedBox.shrink();
               },
             ),
           );

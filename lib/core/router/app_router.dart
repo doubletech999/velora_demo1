@@ -8,7 +8,8 @@ import '../../presentation/providers/paths_provider.dart';
 import '../../presentation/screens/auth/login_screen.dart';
 import '../../presentation/screens/auth/onboarding_screen.dart';
 import '../../presentation/screens/auth/register_screen.dart';
-import '../../presentation/screens/auth/forgot_password_screen.dart'; // إضافة هذا الاستيراد
+import '../../presentation/screens/auth/forgot_password_screen.dart';
+import '../../presentation/screens/auth/reset_password_screen.dart';
 import '../../presentation/screens/auth/terms_and_conditions_screen.dart';
 import '../../presentation/screens/reviews/reviews_screen.dart';
 import '../../presentation/screens/explore/explore_screen.dart';
@@ -21,8 +22,8 @@ import '../../presentation/screens/splash/splash_screen.dart';
 import '../../presentation/screens/search/search_screen.dart';
 import '../../presentation/screens/settings/settings_screen.dart';
 import '../../presentation/screens/saved_paths/saved_paths_screen.dart';
-import '../../presentation/screens/achievements/achievements_screen.dart';
 import '../../presentation/screens/journey/journey_tracking_screen.dart';
+import '../../presentation/screens/notifications/notifications_screen.dart';
 import '../../presentation/widgets/navigation/scaffold_with_navbar.dart';
 
 class AppRouter {
@@ -47,10 +48,7 @@ class AppRouter {
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
@@ -59,6 +57,24 @@ class AppRouter {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      // Reset password with token
+      GoRoute(
+        path: '/reset-password',
+        builder: (context, state) {
+          final email = state.uri.queryParameters['email'] ?? '';
+          final token = state.uri.queryParameters['token'] ?? '';
+
+          if (email.isEmpty || token.isEmpty) {
+            // Redirect to login if parameters are missing
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              context.go('/login');
+            });
+            return const Scaffold(body: Center(child: Text('الرابط غير صحيح')));
+          }
+
+          return ResetPasswordScreen(email: email, token: token);
+        },
       ),
       // Terms and Conditions
       GoRoute(
@@ -75,38 +91,38 @@ class AppRouter {
           return ReviewsScreen(siteId: siteId, pathName: pathName);
         },
       ),
-      
+
       // Journey tracking route (خارج الشل للشاشة الكاملة)
       GoRoute(
         path: '/journey/:pathId',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) {
           final pathId = state.pathParameters['pathId']!;
-          final pathsProvider = Provider.of<PathsProvider>(context, listen: false);
+          final pathsProvider = Provider.of<PathsProvider>(
+            context,
+            listen: false,
+          );
           final path = pathsProvider.getPathById(pathId);
-          
+
           if (path == null) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               Navigator.of(context).pop();
             });
             return const Scaffold(
-              body: Center(
-                child: Text('لم يتم العثور على المسار'),
-              ),
+              body: Center(child: Text('لم يتم العثور على المسار')),
             );
           }
-          
+
           return JourneyTrackingScreen(path: path);
         },
       ),
-      
+
       // Main app routes with bottom navigation bar shell
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
-        builder: (context, state, child) => ScaffoldWithNavBar(
-          location: state.uri.path,
-          child: child,
-        ),
+        builder:
+            (context, state, child) =>
+                ScaffoldWithNavBar(location: state.uri.path, child: child),
         routes: [
           // Home
           GoRoute(
@@ -115,12 +131,11 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: 'search',
-                parentNavigatorKey: _rootNavigatorKey,
                 builder: (context, state) => const SearchScreen(),
               ),
             ],
           ),
-          
+
           // Paths
           GoRoute(
             path: '/paths',
@@ -128,26 +143,69 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: ':id',
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (context, state) => PathDetailsScreen(
-                  pathId: state.pathParameters['id']!,
-                ),
+                builder: (context, state) {
+                  final pathId = state.pathParameters['id']!;
+                  final pathsProvider = Provider.of<PathsProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final path = pathsProvider.getPathById(pathId);
+
+                  // Route to appropriate details screen based on type
+                  // توجيه لصفحة التفاصيل المناسبة حسب النوع
+                  if (path != null) {
+                    final type = path.type?.toLowerCase();
+                    switch (type) {
+                      case 'route':
+                        // Route details with registration
+                        return PathDetailsScreen(
+                          pathId: pathId,
+                          showRegistration: true,
+                        );
+                      case 'camping':
+                        // Camping details with registration
+                        return PathDetailsScreen(
+                          pathId: pathId,
+                          showRegistration: true,
+                        );
+                      case 'hotel':
+                        // Hotel details (no registration)
+                        return PathDetailsScreen(
+                          pathId: pathId,
+                          showRegistration: false,
+                        );
+                      case 'restaurant':
+                        // Restaurant details (no registration)
+                        return PathDetailsScreen(
+                          pathId: pathId,
+                          showRegistration: false,
+                        );
+                      case 'site':
+                      default:
+                        // Tourist site details (no registration)
+                        return PathDetailsScreen(
+                          pathId: pathId,
+                          showRegistration: false,
+                        );
+                    }
+                  }
+
+                  // Default fallback
+                  return PathDetailsScreen(pathId: pathId);
+                },
               ),
             ],
           ),
-          
+
           // Explore
           GoRoute(
             path: '/explore',
             builder: (context, state) => const ExploreScreen(),
           ),
-          
+
           // Map
-          GoRoute(
-            path: '/map',
-            builder: (context, state) => const MapScreen(),
-          ),
-          
+          GoRoute(path: '/map', builder: (context, state) => const MapScreen()),
+
           // Profile
           GoRoute(
             path: '/profile',
@@ -155,20 +213,21 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: 'settings',
-                parentNavigatorKey: _rootNavigatorKey,
                 builder: (context, state) => const SettingsScreen(),
               ),
               GoRoute(
                 path: 'saved',
-                parentNavigatorKey: _rootNavigatorKey,
                 builder: (context, state) => const SavedPathsScreen(),
               ),
-              GoRoute(
-                path: 'achievements',
-                parentNavigatorKey: _rootNavigatorKey,
-                builder: (context, state) => const AchievementsScreen(),
-              ),
+              // Removed achievements route
+              // تم إزالة مسار الإنجازات
             ],
+          ),
+
+          // Notifications
+          GoRoute(
+            path: '/notifications',
+            builder: (context, state) => const NotificationsScreen(),
           ),
         ],
       ),
@@ -181,33 +240,34 @@ class AppRouter {
     final isLoggedIn = userProvider.isLoggedIn;
     final isGuest = userProvider.isGuest;
     final isInitialRoute = state.matchedLocation == '/splash';
-    final isAuthRoute = state.matchedLocation == '/login' || 
-                       state.matchedLocation == '/register' ||
-                       state.matchedLocation == '/onboarding' ||
-                       state.matchedLocation == '/forgot-password' ||
-                       state.matchedLocation == '/terms-and-conditions' ||
-                       state.matchedLocation.startsWith('/reviews/');
-    
+    final isAuthRoute =
+        state.matchedLocation == '/login' ||
+        state.matchedLocation == '/register' ||
+        state.matchedLocation == '/onboarding' ||
+        state.matchedLocation == '/forgot-password' ||
+        state.matchedLocation == '/terms-and-conditions' ||
+        state.matchedLocation.startsWith('/reviews/');
+
     // Guest-restricted routes (profile sub-pages only, not main profile)
-    final isGuestRestrictedRoute = state.matchedLocation.startsWith('/profile/saved') ||
-                                   state.matchedLocation.startsWith('/profile/achievements') ||
-                                   state.matchedLocation.startsWith('/profile/settings');
-    
+    final isGuestRestrictedRoute =
+        state.matchedLocation.startsWith('/profile/saved') ||
+        state.matchedLocation.startsWith('/profile/settings');
+
     // Redirect guests from profile sub-pages to login (but allow main profile page)
     if (isLoggedIn && isGuest && isGuestRestrictedRoute) {
       return '/login';
     }
-    
+
     // Allow splash and auth routes without authentication
     if (isInitialRoute || isAuthRoute) {
       return null;
     }
-    
+
     // Redirect to login if not authenticated
     if (!isLoggedIn) {
       return '/login';
     }
-    
+
     // Allow all other routes when authenticated
     return null;
   }

@@ -47,17 +47,72 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final localizations = AppLocalizations.ofOrThrow(context);
-      // في تطبيق حقيقي، ستقوم بحفظ البيانات المحدثة
+      final currentUser = userProvider.user;
       
-      // محاكاة عملية الحفظ
-      await Future.delayed(const Duration(seconds: 1));
+      if (currentUser == null) {
+        throw Exception('المستخدم غير موجود');
+      }
+
+      // تحديث الملف الشخصي عبر UserProvider
+      // Update profile through UserProvider
+      final updatedUser = currentUser.copyWith(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+      );
       
-      if (mounted) {
+      // إعداد بيانات إضافية (مثل رقم الهاتف)
+      // Prepare additional data (e.g., phone number)
+      final additionalData = <String, dynamic>{};
+      if (_phoneController.text.trim().isNotEmpty) {
+        additionalData['phone'] = _phoneController.text.trim();
+      }
+      
+      final success = await userProvider.updateProfile(
+        updatedUser,
+        additionalData: additionalData.isNotEmpty ? additionalData : null,
+      );
+
+      if (!mounted) return;
+
+      if (success) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(localizations.get('profile_updated')),
+            content: Row(
+              children: [
+                const Icon(PhosphorIcons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(localizations.get('profile_updated')),
+                ),
+              ],
+            ),
             backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      } else {
+        final errorMessage = userProvider.error ?? localizations.get('update_error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(PhosphorIcons.warning, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(errorMessage),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -66,8 +121,21 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
         final localizations = AppLocalizations.ofOrThrow(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${localizations.get('update_error').replaceAll('{error}', '')} $e'),
+            content: Row(
+              children: [
+                const Icon(PhosphorIcons.warning, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('${localizations.get('error')}: ${e.toString()}'),
+                ),
+              ],
+            ),
             backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            duration: const Duration(seconds: 4),
           ),
         );
       }

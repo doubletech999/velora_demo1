@@ -17,6 +17,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   
   // Handle background notification here
   // التعامل مع الإشعار في الخلفية هنا
+  // Note: We can't access Provider here, so notifications will be added when app opens
+  // ملاحظة: لا يمكن الوصول إلى Provider هنا، لذا سيتم إضافة الإشعارات عند فتح التطبيق
 }
 
 class FCMService {
@@ -123,10 +125,26 @@ class FCMService {
       print('📱 Body: ${message.notification?.body}');
       print('📱 Data: ${message.data}');
 
-      // Handle foreground notification
-      // يمكنك عرض إشعار مخصص هنا أو تحديث UI
-      // Example: Show local notification or update UI
+      // Add notification to provider
+      // إضافة الإشعار إلى Provider
+      try {
+        // We'll use a callback or event bus to notify the provider
+        // سنستخدم callback أو event bus لإشعار الـ provider
+        _onNotificationReceived?.call(message);
+      } catch (e) {
+        print('❌ Error adding notification to provider: $e');
+      }
     });
+  }
+
+  // Callback for notification received
+  // Callback عند استقبال إشعار
+  Function(RemoteMessage)? _onNotificationReceived;
+
+  /// Set callback for notification received
+  /// تعيين callback عند استقبال إشعار
+  void setOnNotificationReceived(Function(RemoteMessage) callback) {
+    _onNotificationReceived = callback;
   }
 
   /// Setup notification tap handler

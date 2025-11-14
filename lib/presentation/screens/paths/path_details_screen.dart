@@ -24,8 +24,13 @@ import '../../../data/models/review_model.dart';
 
 class PathDetailsScreen extends StatefulWidget {
   final String pathId;
+  final bool? showRegistration; // null = auto-detect based on type
 
-  const PathDetailsScreen({super.key, required this.pathId});
+  const PathDetailsScreen({
+    super.key,
+    required this.pathId,
+    this.showRegistration,
+  });
 
   @override
   State<PathDetailsScreen> createState() => _PathDetailsScreenState();
@@ -89,7 +94,16 @@ class _PathDetailsScreenState extends State<PathDetailsScreen>
 
     if (path != null) {
       final pathType = path.type?.toLowerCase();
-      _isBookablePath = pathType != 'site';
+      
+      // Determine if registration should be shown
+      // تحديد ما إذا كان يجب عرض التسجيل
+      if (widget.showRegistration != null) {
+        _isBookablePath = widget.showRegistration!;
+      } else {
+        // Auto-detect: routes and camping show registration
+        // الكشف التلقائي: المسارات والتخييمات تعرض التسجيل
+        _isBookablePath = pathType == 'route' || pathType == 'camping';
+      }
 
       if (_isBookablePath) {
         await tripProvider.loadTrips();
@@ -529,18 +543,28 @@ ${isArabic ? _path!.descriptionAr : _path!.description}
           children: [
             _buildInfoCards(),
             const SizedBox(height: 24),
+            // Show registration section only for routes and camping
+            // عرض قسم التسجيل فقط للمسارات والتخييمات
             if (_isBookablePath && _registeredTrips.isNotEmpty) ...[
               _buildRegisteredTripsSection(),
               const SizedBox(height: 24),
             ],
             _buildDescription(),
             const SizedBox(height: 24),
+            // Show type-specific sections
+            // عرض أقسام خاصة بالنوع
+            ..._buildTypeSpecificSections(),
+            const SizedBox(height: 24),
             _buildMiniMap(),
             const SizedBox(height: 24),
             _buildActivities(),
             const SizedBox(height: 24),
-            _buildGuide(),
-            const SizedBox(height: 24),
+            // Show guide only for routes and camping
+            // عرض المرشد فقط للمسارات والتخييمات
+            if (_isBookablePath) ...[
+              _buildGuide(),
+              const SizedBox(height: 24),
+            ],
             _buildWarnings(),
             const SizedBox(height: 24),
             _buildRatingSection(),
@@ -769,36 +793,168 @@ ${isArabic ? _path!.descriptionAr : _path!.description}
 
   Widget _buildInfoCards() {
     final localizations = AppLocalizations.ofOrThrow(context);
+    final pathType = _path!.type?.toLowerCase();
 
-    return Row(
-      children: [
-        Expanded(
-          child: _InfoCard(
-            icon: PhosphorIcons.ruler,
-            title: localizations.get('distance'),
-            value: '${_path!.length} ${localizations.get('km')}',
+    // Different info cards based on type
+    // بطاقات معلومات مختلفة حسب النوع
+    if (pathType == 'hotel') {
+      // Hotel-specific info cards
+      return Row(
+        children: [
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.star_fill,
+              title: 'النجوم',
+              value: _getHotelStarRating(),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _InfoCard(
-            icon: PhosphorIcons.clock,
-            title: localizations.get('duration'),
-            value:
-                '${_path!.estimatedDuration.inHours} ${localizations.get('hours')}',
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.currency_dollar,
+              title: 'سعر الليلة',
+              value: '${_getHotelPricePerNight()} ₪',
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _InfoCard(
-            icon: PhosphorIcons.star,
-            title: localizations.get('rating'),
-            value: '${_path!.rating}',
-            subtitle: '(${_path!.reviewCount})',
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.star,
+              title: localizations.get('rating'),
+              value: '${_path!.rating}',
+              subtitle: '(${_path!.reviewCount})',
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    } else if (pathType == 'restaurant') {
+      // Restaurant-specific info cards
+      return Row(
+        children: [
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.fork_knife,
+              title: 'نوع المطبخ',
+              value: _getRestaurantCuisineType(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.currency_dollar,
+              title: 'متوسط السعر',
+              value: '${_getRestaurantAveragePrice()} ₪',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.star,
+              title: localizations.get('rating'),
+              value: '${_path!.rating}',
+              subtitle: '(${_path!.reviewCount})',
+            ),
+          ),
+        ],
+      );
+    } else if (pathType == 'site') {
+      // Tourist site-specific info cards
+      return Row(
+        children: [
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.map_pin,
+              title: localizations.get('location'),
+              value: _path!.locationAr,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.currency_dollar,
+              title: 'رسوم الدخول',
+              value: _getSiteEntranceFee(),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.star,
+              title: localizations.get('rating'),
+              value: '${_path!.rating}',
+              subtitle: '(${_path!.reviewCount})',
+            ),
+          ),
+        ],
+      );
+    } else {
+      // Route/Camping info cards (default)
+      return Row(
+        children: [
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.ruler,
+              title: localizations.get('distance'),
+              value: '${_path!.length} ${localizations.get('km')}',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.clock,
+              title: localizations.get('duration'),
+              value:
+                  '${_path!.estimatedDuration.inHours} ${localizations.get('hours')}',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _InfoCard(
+              icon: PhosphorIcons.star,
+              title: localizations.get('rating'),
+              value: '${_path!.rating}',
+              subtitle: '(${_path!.reviewCount})',
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
+  // Helper methods to get type-specific data
+  // دوال مساعدة للحصول على بيانات خاصة بالنوع
+  String _getHotelStarRating() {
+    // Try to get from path data (if backend provides it)
+    // محاولة الحصول من بيانات المسار (إذا كان الباك إند يوفرها)
+    // For now, return default
+    return '4'; // Default, should come from backend
+  }
+
+  String _getHotelPricePerNight() {
+    // Try to get from path data
+    // محاولة الحصول من بيانات المسار
+    return _path!.price.toStringAsFixed(0); // Use price field for now
+  }
+
+  String _getRestaurantCuisineType() {
+    // Try to get from path data
+    // محاولة الحصول من بيانات المسار
+    return 'فلسطيني'; // Default, should come from backend
+  }
+
+  String _getRestaurantAveragePrice() {
+    // Try to get from path data
+    // محاولة الحصول من بيانات المسار
+    return _path!.price.toStringAsFixed(0); // Use price field for now
+  }
+
+  String _getSiteEntranceFee() {
+    // Try to get from path data
+    // محاولة الحصول من بيانات المسار
+    if (_path!.price > 0) {
+      return '${_path!.price.toStringAsFixed(0)} ₪';
+    }
+    return 'مجاني';
   }
 
   Widget _buildDescription() {
@@ -842,6 +998,252 @@ ${isArabic ? _path!.descriptionAr : _path!.description}
           style: Theme.of(context).textTheme.bodyLarge,
           maxLines: _isDescriptionExpanded ? null : 3,
           overflow: _isDescriptionExpanded ? null : TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  // Build type-specific sections
+  // بناء أقسام خاصة بالنوع
+  List<Widget> _buildTypeSpecificSections() {
+    final pathType = _path!.type?.toLowerCase();
+    final sections = <Widget>[];
+
+    if (pathType == 'hotel') {
+      // Hotel-specific sections
+      sections.add(_buildHotelAmenities());
+      sections.add(const SizedBox(height: 24));
+      sections.add(_buildHotelContactInfo());
+    } else if (pathType == 'restaurant') {
+      // Restaurant-specific sections
+      sections.add(_buildRestaurantOpeningHours());
+      sections.add(const SizedBox(height: 24));
+      sections.add(_buildRestaurantContactInfo());
+    } else if (pathType == 'site') {
+      // Tourist site-specific sections
+      sections.add(_buildSiteHistoricalInfo());
+      sections.add(const SizedBox(height: 24));
+      sections.add(_buildSiteBestTimeToVisit());
+    } else if (pathType == 'camping') {
+      // Camping-specific sections
+      sections.add(_buildCampingAmenities());
+    }
+
+    return sections;
+  }
+
+  // Hotel-specific widgets
+  Widget _buildHotelAmenities() {
+    // TODO: Get amenities from backend
+    // TODO: الحصول على المرافق من الباك إند
+    final amenities = ['واي فاي', 'مسبح', 'صالة رياضية', 'مطعم', 'موقف سيارات'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'المرافق',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: amenities.map((amenity) {
+            return Chip(
+              label: Text(amenity),
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              labelStyle: TextStyle(color: AppColors.primary),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHotelContactInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'معلومات الاتصال',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        // TODO: Get contact info from backend
+        // TODO: الحصول على معلومات الاتصال من الباك إند
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(PhosphorIcons.phone, color: AppColors.primary),
+                  title: const Text('رقم الهاتف'),
+                  subtitle: const Text('+970591234567'),
+                ),
+                ListTile(
+                  leading: const Icon(PhosphorIcons.envelope, color: AppColors.primary),
+                  title: const Text('البريد الإلكتروني'),
+                  subtitle: const Text('hotel@example.com'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Restaurant-specific widgets
+  Widget _buildRestaurantOpeningHours() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ساعات العمل',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        // TODO: Get opening hours from backend
+        // TODO: الحصول على ساعات العمل من الباك إند
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildOpeningHoursRow('السبت - الخميس', '09:00 - 22:00'),
+                const Divider(),
+                _buildOpeningHoursRow('الجمعة', '09:00 - 22:00'),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOpeningHoursRow(String day, String hours) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(day, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(hours, style: TextStyle(color: AppColors.textSecondary)),
+      ],
+    );
+  }
+
+  Widget _buildRestaurantContactInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'معلومات الاتصال',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        // TODO: Get contact info from backend
+        // TODO: الحصول على معلومات الاتصال من الباك إند
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(PhosphorIcons.phone, color: AppColors.primary),
+                  title: const Text('رقم الهاتف'),
+                  subtitle: const Text('+970591234567'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Tourist site-specific widgets
+  Widget _buildSiteHistoricalInfo() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'المعلومات التاريخية',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        // TODO: Get historical info from backend
+        // TODO: الحصول على المعلومات التاريخية من الباك إند
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildInfoRow('الفترة التاريخية', 'بيزنطي'),
+                const SizedBox(height: 8),
+                _buildInfoRow('رسوم الدخول', _getSiteEntranceFee()),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSiteBestTimeToVisit() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'أفضل وقت للزيارة',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        // TODO: Get best time from backend
+        // TODO: الحصول على أفضل وقت من الباك إند
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: const Text('الربيع والخريف'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(value, style: TextStyle(color: AppColors.textSecondary)),
+      ],
+    );
+  }
+
+  // Camping-specific widgets
+  Widget _buildCampingAmenities() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'مرافق التخييم',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 12),
+        // TODO: Get camping amenities from backend
+        // TODO: الحصول على مرافق التخييم من الباك إند
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: ['موقد نار', 'ماء', 'مرحاض', 'مظلة'].map((amenity) {
+            return Chip(
+              label: Text(amenity),
+              backgroundColor: AppColors.tertiary.withOpacity(0.1),
+              labelStyle: TextStyle(color: AppColors.tertiary),
+            );
+          }).toList(),
         ),
       ],
     );

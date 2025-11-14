@@ -86,13 +86,19 @@ class UserRepository {
   // ═══════════════════════════════════════════════════════════════════
 
   /// تحديث الملف الشخصي
-  Future<UserModel> updateProfile(UserModel user) async {
+  Future<UserModel> updateProfile(UserModel user, {Map<String, dynamic>? additionalData}) async {
     try {
-      final data = {
+      final data = <String, dynamic>{
         'name': user.name,
         'email': user.email,
         'preferred_language': user.preferredLanguage,
       };
+
+      // إضافة بيانات إضافية إذا تم توفيرها (مثل رقم الهاتف)
+      // Add additional data if provided (e.g., phone number)
+      if (additionalData != null) {
+        data.addAll(additionalData);
+      }
 
       return await _authService.updateProfile(data);
     } catch (e) {

@@ -2,15 +2,48 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'core/localization/app_localizations.dart';
 import 'core/localization/language_provider.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/services/fcm_service.dart';
 import 'presentation/providers/settings_provider.dart';
+import 'presentation/providers/notifications_provider.dart';
 
-class VeloraApp extends StatelessWidget {
+class VeloraApp extends StatefulWidget {
   const VeloraApp({super.key});
+
+  @override
+  State<VeloraApp> createState() => _VeloraAppState();
+}
+
+class _VeloraAppState extends State<VeloraApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Setup FCM notification handler after providers are available
+    // إعداد معالج إشعارات FCM بعد توفر Providers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _setupFCMNotificationHandler();
+    });
+  }
+
+  void _setupFCMNotificationHandler() {
+    // Get notifications provider from context
+    // الحصول على NotificationsProvider من context
+    final context = AppRouter.rootNavigatorKey.currentContext;
+    if (context != null) {
+      final notificationsProvider = Provider.of<NotificationsProvider>(context, listen: false);
+      
+      // Set callback to add notifications to provider
+      // تعيين callback لإضافة الإشعارات إلى Provider
+      FCMService.instance.setOnNotificationReceived((RemoteMessage message) {
+        notificationsProvider.addNotificationFromMessage(message);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

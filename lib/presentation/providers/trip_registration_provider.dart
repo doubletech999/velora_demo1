@@ -104,9 +104,10 @@ class TripRegistrationProvider extends ChangeNotifier {
           startTime: startTime.toIso8601String().split('T')[1].split('.')[0], // HH:MM:SS
           endTime: endTime.toIso8601String().split('T')[1].split('.')[0], // HH:MM:SS
           totalPrice: trip.totalPrice,
-          notes: trip.notes.isNotEmpty 
-              ? '${trip.notes}\n\nعدد المشاركين: ${trip.numberOfParticipants}\nطريقة الدفع: ${trip.paymentMethod?.displayNameAr ?? "غير محدد"}'
-              : 'عدد المشاركين: ${trip.numberOfParticipants}',
+          notes: trip.notes.isNotEmpty ? trip.notes : null,
+          pathId: trip.pathId, // إضافة path_id
+          numberOfParticipants: trip.numberOfParticipants, // عدد المشاركين
+          paymentMethod: trip.paymentMethod?.name, // طريقة الدفع (cash أو visa)
         );
         
         print('✅ تم إرسال الحجز بنجاح إلى Laravel: $bookingResponse');

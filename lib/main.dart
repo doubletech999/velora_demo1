@@ -17,10 +17,12 @@ import 'presentation/providers/journey_provider.dart';
 import 'presentation/providers/trip_registration_provider.dart'; // إضافة جديدة
 import 'presentation/providers/trips_provider.dart';
 import 'presentation/providers/reviews_provider.dart';
+import 'presentation/providers/notifications_provider.dart';
 import 'core/services/connectivity_service.dart';
 import 'core/services/fcm_service.dart';
 import 'data/services/auth_service.dart';
 import 'data/services/api_service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -72,6 +74,11 @@ void main() async {
   } catch (e) {
     print('❌ Error initializing FCM Service: $e');
   }
+
+  // Setup FCM notification handler after providers are ready
+  // إعداد معالج إشعارات FCM بعد جاهزية Providers
+  // This will be done in the app after providers are available
+  // سيتم ذلك في التطبيق بعد توفر Providers
 
   // معالجة أخطاء التطبيق
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -141,6 +148,7 @@ void main() async {
         ), // إضافة جديدة
         ChangeNotifierProvider(create: (_) => ReviewsProvider()),
         ChangeNotifierProvider(create: (_) => TripsProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
       ],
       child: const VeloraApp(),
     ),

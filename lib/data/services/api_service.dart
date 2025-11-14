@@ -401,6 +401,54 @@ class ApiService {
     }
   }
 
+  /// إرسال رابط إعادة تعيين كلمة المرور
+  /// Send password reset link
+  Future<dynamic> sendPasswordResetEmail({required String email}) async {
+    final body = {'email': email};
+
+    print('📤 إرسال رابط إعادة تعيين كلمة المرور:');
+    print('  URL: $baseUrl/password/email');
+    print('  Body: {email: $email}');
+
+    try {
+      final response = await post('/password/email', body, requiresAuth: false);
+      print('✅ استجابة إرسال رابط إعادة تعيين كلمة المرور: $response');
+      return response;
+    } catch (e) {
+      print('❌ خطأ في إرسال رابط إعادة تعيين كلمة المرور: $e');
+      rethrow;
+    }
+  }
+
+  /// إعادة تعيين كلمة المرور باستخدام Token
+  /// Reset password using token
+  Future<dynamic> resetPassword({
+    required String email,
+    required String token,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    final body = {
+      'email': email,
+      'token': token,
+      'password': password,
+      'password_confirmation': passwordConfirmation,
+    };
+
+    print('📤 إعادة تعيين كلمة المرور:');
+    print('  URL: $baseUrl/password/reset');
+    print('  Body: {email: $email, token: ***, password: ***}');
+
+    try {
+      final response = await post('/password/reset', body, requiresAuth: false);
+      print('✅ استجابة إعادة تعيين كلمة المرور: $response');
+      return response;
+    } catch (e) {
+      print('❌ خطأ في إعادة تعيين كلمة المرور: $e');
+      rethrow;
+    }
+  }
+
   Future<dynamic> logout() async {
     return await post('/logout', {}, requiresAuth: true);
   }
@@ -895,6 +943,9 @@ class ApiService {
     required String endTime,
     double? totalPrice,
     String? notes,
+    String? pathId, // إضافة path_id أو site_id
+    int? numberOfParticipants, // عدد المشاركين
+    String? paymentMethod, // طريقة الدفع
   }) async {
     Map<String, dynamic> body = {
       'guide_id': guideId,
@@ -909,6 +960,20 @@ class ApiService {
 
     if (notes != null && notes.isNotEmpty) {
       body['notes'] = notes;
+    }
+
+    // إضافة الحقول الجديدة
+    if (pathId != null) {
+      body['path_id'] = pathId; // أو site_id حسب ما يستخدمه Laravel
+      body['site_id'] = pathId; // إضافة كلا الحقلين للتوافق
+    }
+
+    if (numberOfParticipants != null) {
+      body['number_of_participants'] = numberOfParticipants;
+    }
+
+    if (paymentMethod != null) {
+      body['payment_method'] = paymentMethod;
     }
 
     print('📤 إرسال طلب حجز إلى Laravel:');

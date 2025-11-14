@@ -9,12 +9,10 @@ import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/responsive_utils.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/paths_provider.dart';
-import '../../providers/saved_paths_provider.dart';
 import '../../providers/trips_provider.dart';
 import '../../../data/models/trip_model.dart';
 import '../../widgets/trips/trip_details_modal.dart';
 import 'widgets/weather_widget.dart';
-import 'widgets/quick_stats_widget.dart';
 import 'widgets/featured_routes_section.dart';
 import 'widgets/featured_sites_section.dart';
 
@@ -135,12 +133,6 @@ class _HomeScreenState extends State<HomeScreen>
                 // ويدجت الطقس
                 const WeatherWidget(),
 
-                // الإحصائيات السريعة
-                _buildQuickStats(),
-
-                // نصائح يومية مبسطة
-                _buildSimpleTips(),
-
                 // شريط البحث
                 _buildSearchBar(),
 
@@ -152,6 +144,12 @@ class _HomeScreenState extends State<HomeScreen>
 
                 // أبرز المواقع السياحية
                 const FeaturedSitesSection(),
+
+                // قسم إضافي للمحتوى - Featured Camping Sites
+                _buildFeaturedCampingSection(),
+
+                // قسم إضافي - Popular Destinations
+                _buildPopularDestinationsSection(),
 
                 // دعوة للاستكشاف
                 _buildExploreCallToAction(),
@@ -279,47 +277,8 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildQuickStats() {
-    return Consumer3<UserProvider, SavedPathsProvider, PathsProvider>(
-      builder: (
-        context,
-        userProvider,
-        savedPathsProvider,
-        pathsProvider,
-        child,
-      ) {
-        return QuickStatsWidget(
-          completedTrips: userProvider.user?.completedTrips ?? 0,
-          savedPaths: savedPathsProvider.savedPaths.length,
-          achievements: userProvider.user?.achievements ?? 0,
-        );
-      },
-    );
-  }
-
-  Widget _buildSimpleTips() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.blue.withOpacity(0.3), width: 1),
-      ),
-      child: const Row(
-        children: [
-          Icon(PhosphorIcons.lightbulb, color: Colors.blue, size: 24),
-          SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'احرص على أخذ كمية كافية من الماء عند المشي',
-              style: TextStyle(fontSize: 14, color: Colors.blue),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Removed QuickStats and Tips widgets - replaced with more content
+  // تم إزالة ويدجت الإحصائيات والنصائح - استبدالها بمحتوى أكثر
 
   Widget _buildSearchBar() {
     final theme = Theme.of(context);
@@ -378,6 +337,253 @@ class _HomeScreenState extends State<HomeScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFeaturedCampingSection() {
+    final localizations = AppLocalizations.ofOrThrow(context);
+    
+    return Consumer<PathsProvider>(
+      builder: (context, pathsProvider, child) {
+        final campingSites = pathsProvider.filteredRoutesAndCamping
+            .where((path) => path.type?.toLowerCase() == 'camping')
+            .take(5)
+            .toList();
+
+        if (campingSites.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          margin: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    PhosphorIcons.campfire,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'مواقع تخييم مميزة',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => context.go('/paths'),
+                    child: Text(localizations.get('view_all')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 180,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: campingSites.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final site = campingSites[index];
+                    return SizedBox(
+                      width: 280,
+                      child: Card(
+                        clipBehavior: Clip.antiAlias,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: InkWell(
+                          onTap: () => context.push('/paths/${site.id}'),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [
+                                        AppColors.primary.withOpacity(0.3),
+                                        AppColors.primary.withOpacity(0.1),
+                                      ],
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    PhosphorIcons.campfire,
+                                    size: 48,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      site.name,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      site.locationAr,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPopularDestinationsSection() {
+    final localizations = AppLocalizations.ofOrThrow(context);
+    
+    return Consumer<PathsProvider>(
+      builder: (context, pathsProvider, child) {
+        final popularSites = pathsProvider.filteredSites.take(6).toList();
+
+        if (popularSites.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Container(
+          margin: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    PhosphorIcons.map_pin_fill,
+                    color: AppColors.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'وجهات شائعة',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => context.go('/explore'),
+                    child: Text(localizations.get('view_all')),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 1.2,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                ),
+                itemCount: popularSites.length,
+                itemBuilder: (context, index) {
+                  final site = popularSites[index];
+                  return Card(
+                    clipBehavior: Clip.antiAlias,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: InkWell(
+                      onTap: () => context.push('/paths/${site.id}'),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppColors.tertiary.withOpacity(0.3),
+                                    AppColors.primary.withOpacity(0.1),
+                                  ],
+                                ),
+                              ),
+                              child: const Icon(
+                                PhosphorIcons.map_pin,
+                                size: 32,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  site.name,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  site.locationAr,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

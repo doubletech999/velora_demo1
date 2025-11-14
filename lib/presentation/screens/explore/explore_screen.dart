@@ -29,8 +29,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
   int _selectedCategory = 0;
   String _searchQuery = '';
 
+  // Updated categories - removed trips, only show sites, restaurants, hotels
+  // تحديث الفئات - إزالة الرحلات، عرض الأماكن السياحية والمطاعم والفنادق فقط
   final List<_CategoryItem> _categories = const [
-    _CategoryItem(icon: PhosphorIcons.map_trifold_bold, label: 'رحلات'),
     _CategoryItem(icon: PhosphorIcons.buildings_bold, label: 'سياحة'),
     _CategoryItem(icon: Icons.restaurant, label: 'مطاعم'),
     _CategoryItem(icon: Icons.hotel, label: 'فنادق'),
@@ -48,7 +49,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PathsProvider>().initializeIfNeeded();
-      context.read<TripsProvider>().initializeIfNeeded();
+      // No need to load trips in explore screen anymore
+      // لا حاجة لتحميل الرحلات في صفحة الاستكشاف بعد الآن
     });
   }
 
@@ -65,7 +67,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
     ResponsiveUtils.init(context);
     final localizations = AppLocalizations.ofOrThrow(context);
     final pathsProvider = context.watch<PathsProvider>();
-    final tripsProvider = context.watch<TripsProvider>();
+    // No need for tripsProvider in explore screen
+    // لا حاجة لـ tripsProvider في صفحة الاستكشاف
 
     final bool pathsLoading =
         pathsProvider.isLoading && !pathsProvider.initialized;
@@ -74,11 +77,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
         pathsProvider.error != null &&
         pathsProvider.error!.isNotEmpty;
 
-    final List<TripModel> trips =
-        _applyTripSearch(tripsProvider.adventureTrips).toList();
-    final bool tripsLoading = tripsProvider.isLoading && trips.isEmpty;
-    final bool tripsHasError = tripsProvider.error != null && trips.isEmpty;
-
+    // Only show sites, restaurants, and hotels - no trips
+    // عرض الأماكن السياحية والمطاعم والفنادق فقط - بدون رحلات
     final List<PathModel> sites =
         _applySearch(pathsProvider.filteredSites).toList();
     final List<PathModel> restaurants =
@@ -107,28 +107,18 @@ class _ExploreScreenState extends State<ExploreScreen> {
       ),
     ];
 
-    final bool onTripsCategory = _selectedCategory == 0;
-    final List<_SectionData> secondarySections =
-        onTripsCategory
-            ? sections
-            : [
-              for (int i = 0; i < sections.length; i++)
-                if (i != _selectedCategory - 1) sections[i],
-            ];
+    // Updated logic - no trips category
+    // منطق محدث - بدون فئة الرحلات
+    final List<_SectionData> secondarySections = [
+      for (int i = 0; i < sections.length; i++)
+        if (i != _selectedCategory) sections[i],
+    ];
 
-    final bool hasAnyItems =
-        onTripsCategory
-            ? trips.isNotEmpty
-            : sections[_selectedCategory - 1].items.isNotEmpty;
+    final bool hasAnyItems = sections[_selectedCategory].items.isNotEmpty;
     final bool isLoadingSelected =
-        onTripsCategory
-            ? tripsLoading
-            : pathsLoading && !sections[_selectedCategory - 1].items.isNotEmpty;
+        pathsLoading && !sections[_selectedCategory].items.isNotEmpty;
     final bool hasErrorSelected =
-        onTripsCategory
-            ? tripsHasError
-            : pathsHasError &&
-                !sections[_selectedCategory - 1].items.isNotEmpty;
+        pathsHasError && !sections[_selectedCategory].items.isNotEmpty;
 
     final theme = Theme.of(context);
 
@@ -149,90 +139,24 @@ class _ExploreScreenState extends State<ExploreScreen> {
             Expanded(
               child: Builder(
                 builder: (context) {
-                  if (onTripsCategory) {
-                    if (tripsLoading && trips.isEmpty) {
-                      return const LoadingIndicator(
-                        message: 'جاري تحميل الرحلات...',
-                      );
-                    }
-
-                    if (tripsHasError && trips.isEmpty) {
-                      return _buildErrorState(
-                        tripsProvider.error ?? 'فشل تحميل الرحلات',
-                        localizations,
-                      );
-                    }
-
-                    if (!tripsLoading && trips.isEmpty) {
-                      return _buildEmptyState(localizations);
-                    }
-
-                    return SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.responsive(
-                          mobile: 20,
-                          tablet: MediaQuery.of(context).size.width * 0.1,
-                          desktop: MediaQuery.of(context).size.width * 0.2,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionTitle('رحلات مميزة'),
-                          SizedBox(
-                            height: context.responsive(
-                              mobile: 12,
-                              tablet: 16,
-                              desktop: 20,
-                            ),
-                          ),
-                          _buildTripSlider(trips),
-                          SizedBox(
-                            height: context.responsive(
-                              mobile: 24,
-                              tablet: 32,
-                              desktop: 40,
-                            ),
-                          ),
-                          _buildSectionTitle('جميع الرحلات'),
-                          SizedBox(
-                            height: context.responsive(
-                              mobile: 12,
-                              tablet: 16,
-                              desktop: 20,
-                            ),
-                          ),
-                          _buildTripList(trips),
-                          SizedBox(
-                            height: context.responsive(
-                              mobile: 40,
-                              tablet: 48,
-                              desktop: 56,
-                            ),
-                          ),
-                        ],
-                      ),
+                  // Removed trips category - only show sites, restaurants, hotels
+                  // إزالة فئة الرحلات - عرض الأماكن السياحية والمطاعم والفنادق فقط
+                  if (isLoadingSelected) {
+                    return LoadingIndicator(
+                      message: 'جاري تحميل ${_categories[_selectedCategory].label}...',
                     );
                   }
 
-                  if (isLoadingSelected && !hasAnyItems) {
-                    return const LoadingIndicator(
-                      message: 'جاري تحميل البيانات...',
-                    );
-                  }
-
-                  if (hasErrorSelected && !hasAnyItems) {
+                  if (hasErrorSelected) {
                     return _buildErrorState(
                       pathsProvider.error ?? 'فشل تحميل البيانات',
                       localizations,
                     );
                   }
 
-                  if (!isLoadingSelected && !hasAnyItems) {
+                  if (!hasAnyItems) {
                     return _buildEmptyState(localizations);
                   }
-
-                  final primarySection = sections[_selectedCategory - 1];
 
                   return SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
@@ -245,7 +169,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildSectionTitle(primarySection.sliderTitle),
+                        // Show selected category section
+                        // عرض قسم الفئة المحددة
+                        _buildSectionTitle(sections[_selectedCategory].sliderTitle),
                         SizedBox(
                           height: context.responsive(
                             mobile: 12,
@@ -253,42 +179,40 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             desktop: 20,
                           ),
                         ),
-                        _buildSlider(
-                          _topPaths(primarySection.items),
-                          pathsLoading,
-                          pathsHasError,
-                          primarySection.emptyMessage,
+                        _buildHighlightsGrid(
+                          sections[_selectedCategory].items,
+                          isLoadingSelected,
+                          hasErrorSelected,
+                          sections[_selectedCategory].emptyMessage,
                         ),
-                        SizedBox(
-                          height: context.responsive(
-                            mobile: 24,
-                            tablet: 32,
-                            desktop: 40,
-                          ),
-                        ),
-                        for (final section in secondarySections) ...[
-                          _buildSectionTitle(section.listTitle),
-                          SizedBox(
-                            height: context.responsive(
-                              mobile: 12,
-                              tablet: 16,
-                              desktop: 20,
+                        // Show other sections
+                        // عرض الأقسام الأخرى
+                        ...secondarySections.map((section) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(
+                              height: context.responsive(
+                                mobile: 40,
+                                tablet: 48,
+                                desktop: 56,
+                              ),
                             ),
-                          ),
-                          _buildHighlightsGrid(
-                            section.items,
-                            pathsLoading,
-                            pathsHasError,
-                            section.emptyMessage,
-                          ),
-                          SizedBox(
-                            height: context.responsive(
-                              mobile: 24,
-                              tablet: 32,
-                              desktop: 40,
+                            _buildSectionTitle(section.listTitle),
+                            SizedBox(
+                              height: context.responsive(
+                                mobile: 12,
+                                tablet: 16,
+                                desktop: 20,
+                              ),
                             ),
-                          ),
-                        ],
+                            _buildHighlightsGrid(
+                              section.items,
+                              pathsLoading,
+                              pathsHasError,
+                              section.emptyMessage,
+                            ),
+                          ],
+                        )),
                         SizedBox(
                           height: context.responsive(
                             mobile: 40,

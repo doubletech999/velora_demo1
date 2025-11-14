@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_phosphor_icons/flutter_phosphor_icons.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/validators.dart';
+import '../../providers/user_provider.dart';
 
 class ChangePasswordSheet extends StatefulWidget {
   const ChangePasswordSheet({super.key});
@@ -39,23 +41,78 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
     final localizations = AppLocalizations.ofOrThrow(context);
 
     try {
-      // TODO: Replace with real password update logic once API is ready.
-      await Future.delayed(const Duration(seconds: 1));
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      // تحديث كلمة المرور عبر UserProvider
+      final success = await userProvider.updatePassword(
+        currentPassword: _currentPasswordController.text.trim(),
+        newPassword: _newPasswordController.text.trim(),
+        newPasswordConfirmation: _confirmPasswordController.text.trim(),
+      );
 
       if (!mounted) return;
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(localizations.get('password_updated')),
-          backgroundColor: AppColors.success,
-        ),
-      );
+
+      if (success) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(PhosphorIcons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(localizations.get('password_updated')),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      } else {
+        final errorMessage = userProvider.error ?? localizations.get('error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(PhosphorIcons.warning, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(errorMessage),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${localizations.get('error')}: $e'),
+          content: Row(
+            children: [
+              const Icon(PhosphorIcons.warning, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('${localizations.get('error')}: ${e.toString()}'),
+              ),
+            ],
+          ),
           backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          duration: const Duration(seconds: 4),
         ),
       );
     } finally {

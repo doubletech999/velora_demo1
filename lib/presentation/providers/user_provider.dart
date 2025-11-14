@@ -387,7 +387,7 @@ class UserProvider extends ChangeNotifier {
     );
   }
 
-  Future<bool> updateProfile(UserModel updatedUser) async {
+  Future<bool> updateProfile(UserModel updatedUser, {Map<String, dynamic>? additionalData}) async {
     if (_isGuest) {
       _error = 'لا يمكن تحديث الملف في وضع الضيف';
       notifyListeners();
@@ -399,7 +399,7 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _user = await _repository.updateProfile(updatedUser);
+      _user = await _repository.updateProfile(updatedUser, additionalData: additionalData);
       _error = null;
       _isLoading = false;
       notifyListeners();

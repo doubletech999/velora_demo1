@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/utils/responsive_utils.dart';
+import '../../../data/services/api_service.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/arabic_text_field.dart';
@@ -71,11 +72,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     setState(() => _isLoading = true);
 
     try {
-      // محاكاة إرسال رابط إعادة تعيين كلمة المرور
-      await Future.delayed(const Duration(seconds: 2));
-      
-      // في التطبيق الحقيقي، ستقوم بإرسال طلب للخادم هنا
-      // await apiService.sendPasswordResetEmail(_emailController.text);
+      // إرسال رابط إعادة تعيين كلمة المرور للخادم
+      // Send password reset link to server
+      final apiService = ApiService.instance;
+      await apiService.sendPasswordResetEmail(email: _emailController.text.trim());
       
       setState(() {
         _emailSent = true;
@@ -109,14 +109,38 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
       
       if (mounted) {
         final localizations = AppLocalizations.ofOrThrow(context);
+        String errorMessage = localizations.get('error');
+        
+        // Extract error message from exception
+        // استخراج رسالة الخطأ من الاستثناء
+        if (e.toString().contains('message')) {
+          try {
+            final errorStr = e.toString();
+            // Try to extract a more user-friendly message
+            // محاولة استخراج رسالة أكثر وضوحاً للمستخدم
+            if (errorStr.contains('email')) {
+              errorMessage = 'البريد الإلكتروني غير موجود';
+            } else if (errorStr.contains('throttle') || errorStr.contains('rate limit')) {
+              errorMessage = 'تم إرسال طلب سابق. يرجى الانتظار قبل المحاولة مرة أخرى';
+            } else {
+              errorMessage = errorStr.length > 100 
+                  ? '${errorStr.substring(0, 100)}...' 
+                  : errorStr;
+            }
+          } catch (_) {
+            errorMessage = e.toString();
+          }
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${localizations.get('error')}: ${e.toString()}'),
+            content: Text('$errorMessage'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
